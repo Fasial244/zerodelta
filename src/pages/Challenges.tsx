@@ -6,9 +6,11 @@ import { MobileChallengeList } from '@/components/challenges/MobileChallengeList
 import { CountdownOverlay } from '@/components/challenges/CountdownOverlay';
 import { TeamPanel } from '@/components/team/TeamPanel';
 import { UsernameSetupModal } from '@/components/auth/UsernameSetupModal';
+import { CompetitionWaitingRoom } from '@/components/competitions/CompetitionWaitingRoom';
 import { useAuth } from '@/hooks/useAuth';
 import { useChallenges, Challenge } from '@/hooks/useChallenges';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
+import { useCompetitions } from '@/hooks/useCompetitions';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -19,19 +21,28 @@ export default function Challenges() {
   const { user, profile, isAdmin, isLoading: authLoading } = useAuth();
   const { challenges, isLoading: challengesLoading, isChallengeUnlocked, isChallengeSolved } = useChallenges();
   const { gameState, countdown } = useSystemSettings();
+  const { activeCompetition, userRegistration, isLoading: competitionLoading } = useCompetitions();
   const isMobile = useIsMobile();
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [usernameModalDismissed, setUsernameModalDismissed] = useState(false);
+  const [accessGranted, setAccessGranted] = useState(false);
 
   // Check if user needs to set a username (Google users get auto-generated names like "user_abc123")
   const needsUsername = profile?.username?.startsWith('user_') && !usernameModalDismissed;
 
-  // Admins can always interact with challenges
-  const canViewGraph = gameState === 'active' || isAdmin;
-  const showCountdownOverlay = gameState === 'before_start' && !isAdmin;
+  // Check if user needs to wait for competition
+  const needsWaitingRoom = !isAdmin && 
+    activeCompetition && 
+    activeCompetition.require_approval && 
+    !accessGranted &&
+    (
+      !userRegistration || 
+      userRegistration.status !== 'approved' ||
+      new Date(activeCompetition.start_time) > new Date()
+    );
 
   // Show loading state while checking authentication
-  if (authLoading) {
+  if (authLoading || competitionLoading) {
     return (
       <Layout>
         <div className="min-h-screen flex items-center justify-center">
@@ -65,7 +76,7 @@ export default function Challenges() {
     );
   }
 
-  if (gameState === 'paused') {
+  if (gameState === 'paused' && !isAdmin) {
     return (
       <Layout>
         <div className="container mx-auto px-4 pt-28 pb-8">
@@ -88,6 +99,19 @@ export default function Challenges() {
       </Layout>
     );
   }
+
+  // Show competition waiting room if needed
+  if (needsWaitingRoom && activeCompetition) {
+    return (
+      <CompetitionWaitingRoom 
+        competition={activeCompetition} 
+        onAccessGranted={() => setAccessGranted(true)} 
+      />
+    );
+  }
+
+  // Admins can always interact with challenges
+  const showCountdownOverlay = gameState === 'before_start' && !isAdmin;
 
   return (
     <Layout>

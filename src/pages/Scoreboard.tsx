@@ -264,6 +264,13 @@ export default function Scoreboard() {
             const rank = index + 1;
             const isRankingUp = rankUpPlayer === player.id;
             const sanitizedName = DOMPurify.sanitize(player.username || 'Anonymous');
+            const isTop3 = rank <= 3;
+            
+            // Larger sizes for top 3
+            const avatarSize = rank === 1 ? 'w-20 h-20' : rank <= 3 ? 'w-16 h-16' : 'w-12 h-12';
+            const textSize = rank === 1 ? 'text-3xl' : rank <= 3 ? 'text-2xl' : 'text-lg';
+            const pointsSize = rank === 1 ? 'text-4xl' : rank <= 3 ? 'text-3xl' : 'text-2xl';
+            const paddingSize = isTop3 ? 'p-6 mb-4' : 'p-4 mb-3';
             
             return (
               <motion.div
@@ -278,9 +285,10 @@ export default function Scoreboard() {
                 exit={{ opacity: 0, x: -50 }}
                 transition={{ duration: 0.3 }}
                 className={`
-                  relative flex items-center gap-6 p-4 mb-3 border rounded
+                  relative flex items-center gap-6 ${paddingSize} border rounded
                   ${getRowStyle(rank)}
                   ${isRankingUp ? 'ring-2 ring-primary/50' : ''}
+                  ${isTop3 ? 'shadow-lg' : ''}
                   transition-all duration-300
                 `}
               >
@@ -297,16 +305,16 @@ export default function Scoreboard() {
                 )}
 
                 {/* Rank */}
-                <div className="w-16 flex justify-center">
+                <div className={`${isTop3 ? 'w-20' : 'w-16'} flex justify-center`}>
                   {getRankIcon(rank)}
                 </div>
 
-                {/* Avatar */}
+                {/* Avatar - larger for top 3 */}
                 <div className={`
-                  w-12 h-12 rounded-full overflow-hidden border-2
-                  ${rank === 1 ? 'border-primary shadow-[0_0_15px_hsl(var(--primary)/0.5)]' : 
-                    rank === 2 ? 'border-muted' : 
-                    rank === 3 ? 'border-secondary' : 'border-border'}
+                  ${avatarSize} rounded-full overflow-hidden border-2 flex-shrink-0
+                  ${rank === 1 ? 'border-primary shadow-[0_0_25px_hsl(var(--primary)/0.6)]' : 
+                    rank === 2 ? 'border-muted shadow-[0_0_15px_hsl(var(--muted)/0.4)]' : 
+                    rank === 3 ? 'border-secondary shadow-[0_0_15px_hsl(var(--secondary)/0.4)]' : 'border-border'}
                 `}>
                   {player.avatar_url ? (
                     <img 
@@ -316,42 +324,50 @@ export default function Scoreboard() {
                     />
                   ) : (
                     <div className="w-full h-full bg-muted flex items-center justify-center">
-                      <span className="text-lg font-bold text-muted-foreground">
+                      <span className={`font-bold text-muted-foreground ${isTop3 ? 'text-2xl' : 'text-lg'}`}>
                         {sanitizedName.charAt(0).toUpperCase()}
                       </span>
                     </div>
                   )}
                 </div>
 
-                {/* Name & Stats */}
+                {/* Name & Stats - larger for top 3 */}
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <span 
-                      className={`font-mono font-bold text-lg ${rank <= 3 ? 'text-primary' : 'text-foreground'}`}
+                      className={`font-mono font-bold ${textSize} ${rank <= 3 ? 'text-primary' : 'text-foreground'}`}
                       dangerouslySetInnerHTML={{ __html: sanitizedName }}
                     />
                     {player.first_bloods > 0 && (
-                      <span className="text-secondary text-sm">🩸 ×{player.first_bloods}</span>
+                      <span className={`text-secondary ${isTop3 ? 'text-base' : 'text-sm'}`}>
+                        🩸 ×{player.first_bloods}
+                      </span>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground font-mono">
+                  <div className={`text-muted-foreground font-mono ${isTop3 ? 'text-sm mt-1' : 'text-xs'}`}>
                     {player.solve_count} CASES SOLVED
                   </div>
                 </div>
 
-                {/* Points */}
+                {/* Points - larger for top 3 */}
                 <div className="text-right">
-                  <div className={`text-2xl font-bold font-mono ${rank === 1 ? 'text-primary' : 'text-foreground'}`}>
+                  <div className={`font-bold font-mono ${pointsSize} ${rank === 1 ? 'text-primary' : 'text-foreground'}`}>
                     {player.total_points.toLocaleString()}
                   </div>
-                  <div className="text-xs text-muted-foreground font-mono">POINTS</div>
+                  <div className={`text-muted-foreground font-mono ${isTop3 ? 'text-sm' : 'text-xs'}`}>POINTS</div>
                 </div>
 
-                {/* Top 3 "Most Wanted" badge */}
-                {rank <= 3 && (
-                  <div className="absolute -top-2 -right-2 bg-primary text-background text-xs font-mono px-2 py-0.5 rounded">
-                    {rank === 1 ? 'LEAD DETECTIVE' : rank === 2 ? 'SENIOR AGENT' : 'AGENT'}
-                  </div>
+                {/* Top 3 "Most Wanted" badge - larger */}
+                {isTop3 && (
+                  <motion.div 
+                    className={`absolute -top-3 -right-3 text-background font-mono px-3 py-1 rounded shadow-lg
+                      ${rank === 1 ? 'bg-primary text-sm' : 'bg-muted text-xs'}
+                    `}
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    {rank === 1 ? '👑 LEAD DETECTIVE' : rank === 2 ? 'SENIOR AGENT' : 'AGENT'}
+                  </motion.div>
                 )}
               </motion.div>
             );

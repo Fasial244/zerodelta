@@ -145,6 +145,18 @@ export default function Index() {
     ╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝╚══════╝╚═╝   ╚═╝  ╚═╝
 `}
         </motion.pre>
+
+        {/* Author Credit Footer */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+          className="text-center mt-16 pt-8 border-t border-border/30"
+        >
+          <p className="text-sm text-muted-foreground/70 font-mono tracking-wider">
+            CASE #2025 // LEAD INVESTIGATOR: <span className="text-primary">0xfsl</span> (Faisal AL-Jaber)
+          </p>
+        </motion.div>
       </div>
     </Layout>
   );
