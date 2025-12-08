@@ -15,12 +15,13 @@ import { ChallengeNode } from './ChallengeNode';
 
 const nodeTypes = { challenge: ChallengeNode };
 
+// Noir Detective theme colors
 const categoryColors: Record<string, string> = {
-  Web: '#00FFFF',
-  Pwn: '#FF00FF',
-  Crypto: '#39FF14',
-  Forensics: '#FF6B35',
-  Other: '#A855F7',
+  Web: 'hsl(38, 100%, 50%)',      // Amber/Gold
+  Pwn: 'hsl(0, 70%, 45%)',        // Crimson
+  Crypto: 'hsl(50, 100%, 50%)',   // Yellow/Gold
+  Forensics: 'hsl(30, 80%, 50%)', // Orange/Rust
+  Other: 'hsl(60, 20%, 70%)',     // Paper
 };
 
 interface ChallengeGraphProps {
@@ -43,7 +44,6 @@ export function ChallengeGraph({
     
     // Position nodes in a grid/tree layout
     const levelMap = new Map<string, number>();
-    const positioned = new Set<string>();
 
     // Calculate levels based on dependencies
     const calculateLevel = (challenge: Challenge, visited = new Set<string>()): number => {
@@ -99,20 +99,29 @@ export function ChallengeGraph({
           },
         });
 
-        // Create edges for dependencies
+        // Create CURVED edges for dependencies (smoothstep type)
         challenge.dependencies?.forEach(depId => {
+          const depChallenge = challenges.find(c => c.id === depId);
+          const isDepSolved = depChallenge ? isChallengeSolved(depId) : false;
+          
           edges.push({
             id: `${depId}-${challenge.id}`,
             source: depId,
             target: challenge.id,
-            animated: !isSolved,
+            type: 'smoothstep', // CURVED BEZIER LINES
+            animated: !isSolved && isUnlocked,
             style: { 
-              stroke: isUnlocked ? categoryColors[challenge.category] : '#4B5563',
+              stroke: isDepSolved 
+                ? categoryColors[challenge.category] || 'hsl(38, 100%, 50%)'
+                : 'hsl(0, 0%, 25%)',
               strokeWidth: 2,
+              opacity: isUnlocked ? 1 : 0.4,
             },
             markerEnd: {
               type: MarkerType.ArrowClosed,
-              color: isUnlocked ? categoryColors[challenge.category] : '#4B5563',
+              color: isDepSolved 
+                ? categoryColors[challenge.category] || 'hsl(38, 100%, 50%)'
+                : 'hsl(0, 0%, 25%)',
             },
           });
         });
@@ -133,14 +142,14 @@ export function ChallengeGraph({
 
   if (challenges.length === 0) {
     return (
-      <div className="w-full h-[65vh] rounded-lg border border-border bg-card/30 flex items-center justify-center">
-        <p className="text-muted-foreground font-mono">No challenges to display</p>
+      <div className="w-full h-[65vh] rounded border border-primary/20 bg-card/30 flex items-center justify-center">
+        <p className="text-muted-foreground font-mono">NO CASE FILES AVAILABLE</p>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-[65vh] rounded-lg border border-border bg-card/30 overflow-hidden">
+    <div className="w-full h-[65vh] rounded border border-primary/20 bg-card/30 overflow-hidden">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -152,7 +161,12 @@ export function ChallengeGraph({
         maxZoom={1.5}
         proOptions={{ hideAttribution: true }}
       >
-        <Background color="hsl(var(--border))" gap={32} />
+        <Background 
+          color="hsl(38, 100%, 50%)" 
+          gap={40} 
+          size={1}
+          style={{ opacity: 0.05 }}
+        />
         <Controls className="bg-card border-border" />
       </ReactFlow>
     </div>
