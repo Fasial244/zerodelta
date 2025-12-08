@@ -8,6 +8,15 @@ import { Switch } from '@/components/ui/switch';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { useAdmin } from '@/hooks/useAdmin';
 
+// Helper to safely convert any value to string
+function toStringValue(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (typeof value === 'number') return String(value);
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
+}
+
 export function AdminSettings() {
   const { settings, isLoading } = useSystemSettings();
   const { updateSetting, postAnnouncement } = useAdmin();
@@ -16,12 +25,20 @@ export function AdminSettings() {
 
   useEffect(() => {
     if (settings) {
-      setLocalSettings(settings as unknown as Record<string, string>);
+      // Safely convert all settings to string format
+      const converted: Record<string, string> = {};
+      Object.entries(settings).forEach(([key, value]) => {
+        converted[key] = toStringValue(value);
+      });
+      setLocalSettings(converted);
     }
   }, [settings]);
 
   const handleSave = (key: string) => {
-    updateSetting({ key, value: localSettings[key] });
+    const value = localSettings[key];
+    if (value !== undefined) {
+      updateSetting({ key, value });
+    }
   };
 
   const handlePostAnnouncement = () => {
@@ -65,48 +82,56 @@ export function AdminSettings() {
         <Switch
           checked={localSettings.game_paused === 'true'}
           onCheckedChange={(checked) => {
-            setLocalSettings({ ...localSettings, game_paused: checked ? 'true' : 'false' });
-            updateSetting({ key: 'game_paused', value: checked ? 'true' : 'false' });
+            const newValue = checked ? 'true' : 'false';
+            setLocalSettings(prev => ({ ...prev, game_paused: newValue }));
+            updateSetting({ key: 'game_paused', value: newValue });
           }}
         />
       </div>
 
       {/* Settings fields */}
       <div className="grid gap-4 md:grid-cols-2">
-        {settingFields.map((field) => (
-          <div key={field.key} className="space-y-2">
-            <Label htmlFor={field.key}>{field.label}</Label>
-            <div className="flex gap-2">
-              <Input
-                id={field.key}
-                type={field.type}
-                step={field.step}
-                value={
-                  field.type === 'datetime-local' && localSettings[field.key]
-                    ? localSettings[field.key].slice(0, 16)
-                    : localSettings[field.key] || ''
-                }
-                onChange={(e) =>
-                  setLocalSettings({
-                    ...localSettings,
-                    [field.key]:
-                      field.type === 'datetime-local'
-                        ? new Date(e.target.value).toISOString()
-                        : e.target.value,
-                  })
-                }
-                className="flex-1"
-              />
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handleSave(field.key)}
-              >
-                <Save className="w-4 h-4" />
-              </Button>
+        {settingFields.map((field) => {
+          const rawValue = localSettings[field.key] || '';
+          // For datetime-local, extract the first 16 characters if it's an ISO string
+          const displayValue = field.type === 'datetime-local' && rawValue
+            ? rawValue.slice(0, 16)
+            : rawValue;
+            
+          return (
+            <div key={field.key} className="space-y-2">
+              <Label htmlFor={field.key}>{field.label}</Label>
+              <div className="flex gap-2">
+                <Input
+                  id={field.key}
+                  type={field.type}
+                  step={field.step}
+                  value={displayValue}
+                  onChange={(e) => {
+                    let newValue = e.target.value;
+                    // Convert datetime-local back to ISO string
+                    if (field.type === 'datetime-local' && newValue) {
+                      try {
+                        newValue = new Date(newValue).toISOString();
+                      } catch {
+                        // Keep as-is if conversion fails
+                      }
+                    }
+                    setLocalSettings(prev => ({ ...prev, [field.key]: newValue }));
+                  }}
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleSave(field.key)}
+                >
+                  <Save className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Announcement section */}

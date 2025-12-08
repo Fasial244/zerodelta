@@ -4,6 +4,7 @@ import { AdminChallenges } from '@/components/admin/AdminChallenges';
 import { AdminUsers } from '@/components/admin/AdminUsers';
 import { AdminSettings } from '@/components/admin/AdminSettings';
 import { AdminActivity } from '@/components/admin/AdminActivity';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Shield, Users, Settings, Activity, Target } from 'lucide-react';
 
@@ -40,19 +41,27 @@ export default function Admin() {
             </TabsList>
 
             <TabsContent value="challenges">
-              <AdminChallenges />
+              <ErrorBoundary>
+                <AdminChallenges />
+              </ErrorBoundary>
             </TabsContent>
 
             <TabsContent value="users">
-              <AdminUsers />
+              <ErrorBoundary>
+                <AdminUsers />
+              </ErrorBoundary>
             </TabsContent>
 
             <TabsContent value="settings">
-              <AdminSettings />
+              <ErrorBoundary>
+                <AdminSettings />
+              </ErrorBoundary>
             </TabsContent>
 
             <TabsContent value="activity">
-              <AdminActivity />
+              <ErrorBoundary>
+                <AdminActivity />
+              </ErrorBoundary>
             </TabsContent>
           </Tabs>
         </div>
