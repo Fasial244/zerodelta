@@ -101,7 +101,7 @@ export function useLeaderboard() {
     },
   });
 
-  // Subscribe to realtime updates
+  // Subscribe to realtime updates - refetch every 3 seconds as well for live scoreboard
   useEffect(() => {
     const channel = supabase
       .channel('leaderboard-changes')
@@ -113,10 +113,16 @@ export function useLeaderboard() {
       })
       .subscribe();
 
+    // Also poll every 3 seconds for live scoreboard updates
+    const interval = setInterval(() => {
+      individualQuery.refetch();
+    }, 3000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(interval);
     };
-  }, []);
+  }, [individualQuery]);
 
   return {
     individual: individualQuery.data || [],

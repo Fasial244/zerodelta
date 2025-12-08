@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { Badge, UserCheck, TrendingUp, Crown, Award, Medal } from 'lucide-react';
@@ -133,11 +133,11 @@ export default function Scoreboard() {
   const getRankIcon = (rank: number) => {
     switch (rank) {
       case 1:
-        return <Crown className="w-6 h-6 text-primary animate-pulse" />;
+        return <Crown className="w-12 h-12 text-primary animate-pulse" />;
       case 2:
-        return <Award className="w-6 h-6 text-muted-foreground" />;
+        return <Award className="w-10 h-10 text-muted-foreground" />;
       case 3:
-        return <Medal className="w-6 h-6 text-secondary" />;
+        return <Medal className="w-10 h-10 text-secondary" />;
       default:
         return <span className="w-6 h-6 flex items-center justify-center text-sm font-mono text-muted-foreground">#{rank}</span>;
     }
@@ -169,6 +169,10 @@ export default function Scoreboard() {
       </div>
     );
   }
+
+  // Separate top 3 from rest
+  const top3 = individual.slice(0, 3);
+  const rest = individual.slice(3);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -259,18 +263,121 @@ export default function Scoreboard() {
           msOverflowStyle: 'none',
         }}
       >
+        {/* TOP 3 - Horizontal Layout */}
+        {top3.length > 0 && (
+          <div className="mb-8">
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-mono text-primary tracking-widest">MOST WANTED</h2>
+              <div className="w-32 h-0.5 bg-primary/50 mx-auto mt-2" />
+            </div>
+            
+            <div className="flex justify-center items-end gap-6 md:gap-12">
+              {/* Reorder: 2nd, 1st, 3rd for podium effect */}
+              {[top3[1], top3[0], top3[2]].filter(Boolean).map((player, idx) => {
+                if (!player) return null;
+                const actualRank = idx === 0 ? 2 : idx === 1 ? 1 : 3;
+                const sanitizedName = DOMPurify.sanitize(player.username || 'Anonymous');
+                const isRankingUp = rankUpPlayer === player.id;
+                
+                // Size variations
+                const containerHeight = actualRank === 1 ? 'h-64' : 'h-52';
+                const avatarSize = actualRank === 1 ? 'w-24 h-24' : 'w-20 h-20';
+                
+                return (
+                  <motion.div
+                    key={player.id}
+                    layout
+                    initial={{ opacity: 0, y: 50 }}
+                    animate={{ 
+                      opacity: 1, 
+                      y: 0,
+                      scale: isRankingUp ? 1.05 : 1,
+                    }}
+                    className={`
+                      flex flex-col items-center justify-end ${containerHeight}
+                      px-6 py-4 rounded-lg border
+                      ${getRowStyle(actualRank)}
+                      ${isRankingUp ? 'ring-2 ring-primary/50' : ''}
+                    `}
+                  >
+                    {/* Icon */}
+                    <div className="mb-3">
+                      {getRankIcon(actualRank)}
+                    </div>
+                    
+                    {/* Avatar */}
+                    <div className={`
+                      ${avatarSize} rounded-full overflow-hidden border-2 mb-3
+                      ${actualRank === 1 ? 'border-primary shadow-[0_0_25px_hsl(var(--primary)/0.6)]' : 
+                        actualRank === 2 ? 'border-muted shadow-[0_0_15px_hsl(var(--muted)/0.4)]' : 
+                        'border-secondary shadow-[0_0_15px_hsl(var(--secondary)/0.4)]'}
+                    `}>
+                      {player.avatar_url ? (
+                        <img 
+                          src={player.avatar_url} 
+                          alt={sanitizedName}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-muted flex items-center justify-center">
+                          <span className="font-bold text-muted-foreground text-2xl">
+                            {sanitizedName.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Name */}
+                    <span 
+                      className={`font-mono font-bold text-center ${actualRank === 1 ? 'text-xl text-primary' : 'text-lg text-foreground'}`}
+                      dangerouslySetInnerHTML={{ __html: sanitizedName }}
+                    />
+                    
+                    {/* Points */}
+                    <div className={`font-bold font-mono ${actualRank === 1 ? 'text-2xl text-primary' : 'text-xl text-foreground'} mt-1`}>
+                      {player.total_points.toLocaleString()}
+                    </div>
+                    <div className="text-xs text-muted-foreground font-mono">POINTS</div>
+                    
+                    {/* First bloods */}
+                    {player.first_bloods > 0 && (
+                      <span className="text-secondary text-sm mt-1">
+                        🩸 ×{player.first_bloods}
+                      </span>
+                    )}
+                    
+                    {/* Badge */}
+                    <motion.div 
+                      className={`mt-2 text-background font-mono px-2 py-0.5 rounded text-xs
+                        ${actualRank === 1 ? 'bg-primary' : 'bg-muted'}
+                      `}
+                      animate={{ scale: [1, 1.05, 1] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    >
+                      {actualRank === 1 ? '👑 LEAD' : actualRank === 2 ? 'SENIOR' : 'AGENT'}
+                    </motion.div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        
+        {/* Divider */}
+        {rest.length > 0 && (
+          <div className="flex items-center gap-4 my-6">
+            <div className="flex-1 h-px bg-border/50" />
+            <span className="text-xs text-muted-foreground font-mono">OTHER AGENTS</span>
+            <div className="flex-1 h-px bg-border/50" />
+          </div>
+        )}
+
+        {/* REST - Vertical List */}
         <AnimatePresence mode="popLayout">
-          {individual.map((player, index) => {
-            const rank = index + 1;
+          {rest.map((player, index) => {
+            const rank = index + 4; // Start from rank 4
             const isRankingUp = rankUpPlayer === player.id;
             const sanitizedName = DOMPurify.sanitize(player.username || 'Anonymous');
-            const isTop3 = rank <= 3;
-            
-            // Larger sizes for top 3
-            const avatarSize = rank === 1 ? 'w-20 h-20' : rank <= 3 ? 'w-16 h-16' : 'w-12 h-12';
-            const textSize = rank === 1 ? 'text-3xl' : rank <= 3 ? 'text-2xl' : 'text-lg';
-            const pointsSize = rank === 1 ? 'text-4xl' : rank <= 3 ? 'text-3xl' : 'text-2xl';
-            const paddingSize = isTop3 ? 'p-6 mb-4' : 'p-4 mb-3';
             
             return (
               <motion.div
@@ -285,10 +392,9 @@ export default function Scoreboard() {
                 exit={{ opacity: 0, x: -50 }}
                 transition={{ duration: 0.3 }}
                 className={`
-                  relative flex items-center gap-6 ${paddingSize} border rounded
+                  relative flex items-center gap-6 p-4 mb-3 border rounded
                   ${getRowStyle(rank)}
                   ${isRankingUp ? 'ring-2 ring-primary/50' : ''}
-                  ${isTop3 ? 'shadow-lg' : ''}
                   transition-all duration-300
                 `}
               >
@@ -305,17 +411,12 @@ export default function Scoreboard() {
                 )}
 
                 {/* Rank */}
-                <div className={`${isTop3 ? 'w-20' : 'w-16'} flex justify-center`}>
-                  {getRankIcon(rank)}
+                <div className="w-16 flex justify-center">
+                  <span className="text-sm font-mono text-muted-foreground">#{rank}</span>
                 </div>
 
-                {/* Avatar - larger for top 3 */}
-                <div className={`
-                  ${avatarSize} rounded-full overflow-hidden border-2 flex-shrink-0
-                  ${rank === 1 ? 'border-primary shadow-[0_0_25px_hsl(var(--primary)/0.6)]' : 
-                    rank === 2 ? 'border-muted shadow-[0_0_15px_hsl(var(--muted)/0.4)]' : 
-                    rank === 3 ? 'border-secondary shadow-[0_0_15px_hsl(var(--secondary)/0.4)]' : 'border-border'}
-                `}>
+                {/* Avatar */}
+                <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-border flex-shrink-0">
                   {player.avatar_url ? (
                     <img 
                       src={player.avatar_url} 
@@ -324,51 +425,38 @@ export default function Scoreboard() {
                     />
                   ) : (
                     <div className="w-full h-full bg-muted flex items-center justify-center">
-                      <span className={`font-bold text-muted-foreground ${isTop3 ? 'text-2xl' : 'text-lg'}`}>
+                      <span className="font-bold text-muted-foreground text-lg">
                         {sanitizedName.charAt(0).toUpperCase()}
                       </span>
                     </div>
                   )}
                 </div>
 
-                {/* Name & Stats - larger for top 3 */}
+                {/* Name & Stats */}
                 <div className="flex-1">
                   <div className="flex items-center gap-3">
                     <span 
-                      className={`font-mono font-bold ${textSize} ${rank <= 3 ? 'text-primary' : 'text-foreground'}`}
+                      className="font-mono font-bold text-lg text-foreground"
                       dangerouslySetInnerHTML={{ __html: sanitizedName }}
                     />
                     {player.first_bloods > 0 && (
-                      <span className={`text-secondary ${isTop3 ? 'text-base' : 'text-sm'}`}>
+                      <span className="text-secondary text-sm">
                         🩸 ×{player.first_bloods}
                       </span>
                     )}
                   </div>
-                  <div className={`text-muted-foreground font-mono ${isTop3 ? 'text-sm mt-1' : 'text-xs'}`}>
+                  <div className="text-muted-foreground font-mono text-xs">
                     {player.solve_count} CASES SOLVED
                   </div>
                 </div>
 
-                {/* Points - larger for top 3 */}
+                {/* Points */}
                 <div className="text-right">
-                  <div className={`font-bold font-mono ${pointsSize} ${rank === 1 ? 'text-primary' : 'text-foreground'}`}>
+                  <div className="font-bold font-mono text-2xl text-foreground">
                     {player.total_points.toLocaleString()}
                   </div>
-                  <div className={`text-muted-foreground font-mono ${isTop3 ? 'text-sm' : 'text-xs'}`}>POINTS</div>
+                  <div className="text-muted-foreground font-mono text-xs">POINTS</div>
                 </div>
-
-                {/* Top 3 "Most Wanted" badge - larger */}
-                {isTop3 && (
-                  <motion.div 
-                    className={`absolute -top-3 -right-3 text-background font-mono px-3 py-1 rounded shadow-lg
-                      ${rank === 1 ? 'bg-primary text-sm' : 'bg-muted text-xs'}
-                    `}
-                    animate={{ scale: [1, 1.05, 1] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  >
-                    {rank === 1 ? '👑 LEAD DETECTIVE' : rank === 2 ? 'SENIOR AGENT' : 'AGENT'}
-                  </motion.div>
-                )}
               </motion.div>
             );
           })}
