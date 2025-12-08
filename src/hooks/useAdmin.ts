@@ -31,9 +31,10 @@ export function useAdmin() {
   const allChallengesQuery = useQuery({
     queryKey: ['admin-challenges'],
     queryFn: async () => {
+      // Admins have full access - select explicit columns for clarity
       const { data, error } = await supabase
         .from('challenges')
-        .select('*')
+        .select('id, title, description, points, category, flag_type, flag_hash, flag_pattern, connection_info, dependencies, solve_count, first_blood_user_id, first_blood_at, is_active, created_at, updated_at')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -45,10 +46,11 @@ export function useAdmin() {
   const allUsersQuery = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
+      // Admin user management - explicit columns
       const { data, error } = await supabase
         .from('profiles')
         .select(`
-          *,
+          id, username, avatar_url, team_id, is_banned, is_locked, created_at, updated_at,
           teams (name),
           solves (id, points_awarded)
         `)
@@ -63,10 +65,11 @@ export function useAdmin() {
   const activityLogQuery = useQuery({
     queryKey: ['admin-activity'],
     queryFn: async () => {
+      // Admin activity log - explicit columns
       const { data, error } = await supabase
         .from('activity_log')
         .select(`
-          *,
+          id, event_type, message, points, user_id, challenge_id, team_id, created_at,
           profiles:user_id (username),
           challenges:challenge_id (title)
         `)

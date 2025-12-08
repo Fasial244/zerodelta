@@ -74,7 +74,7 @@ export function useLeaderboard() {
   const teamQuery = useQuery({
     queryKey: ['leaderboard', 'team'],
     queryFn: async () => {
-      // Use teams_public view which excludes join_code for non-members
+      // Use teams_public view with explicit columns (excludes join_code for non-members)
       const { data: teams, error } = await supabase
         .from('teams_public')
         .select('id, name, score')
@@ -83,8 +83,10 @@ export function useLeaderboard() {
 
       if (error) throw error;
 
-      // Get member counts separately
-      const teamIds = teams?.map(t => t.id) || [];
+      // Get member counts separately with explicit columns
+      const teamIds = teams?.map(t => t.id).filter(Boolean) as string[] || [];
+      if (teamIds.length === 0) return [];
+      
       const { data: profiles } = await supabase
         .from('profiles')
         .select('team_id')
@@ -97,11 +99,11 @@ export function useLeaderboard() {
         }
       });
 
-      return teams?.map((team: any) => ({
-        id: team.id,
-        name: team.name,
-        score: team.score,
-        member_count: memberCounts.get(team.id) || 0,
+      return teams?.map((team) => ({
+        id: team.id as string,
+        name: team.name as string,
+        score: team.score as number,
+        member_count: memberCounts.get(team.id as string) || 0,
       })) || [];
     },
   });

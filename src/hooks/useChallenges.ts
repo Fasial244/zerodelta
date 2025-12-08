@@ -29,10 +29,10 @@ export function useChallenges() {
   const challengesQuery = useQuery({
     queryKey: ['challenges'],
     queryFn: async () => {
-      // Use the secure public view that excludes flag_hash and flag_pattern
+      // Use the secure public view with explicit columns (no flag_hash or flag_pattern)
       const { data, error } = await supabase
         .from('challenges_public')
-        .select('*')
+        .select('id, title, description, points, category, flag_type, connection_info, dependencies, solve_count, first_blood_user_id, first_blood_at, is_active, created_at, updated_at')
         .eq('is_active', true)
         .order('points', { ascending: true });
 
@@ -47,7 +47,7 @@ export function useChallenges() {
       if (!user) return [];
       const { data, error } = await supabase
         .from('solves')
-        .select('*')
+        .select('id, challenge_id, user_id, team_id, points_awarded, is_first_blood, created_at')
         .eq('user_id', user.id);
 
       if (error) throw error;
