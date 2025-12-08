@@ -15,7 +15,8 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Outfit', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
+        mono: ['JetBrains Mono', 'Courier Prime', 'monospace'],
+        typewriter: ['Courier Prime', 'Courier New', 'monospace'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -61,17 +62,15 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
-        // Cyberpunk neon colors
-        neon: {
-          cyan: "hsl(var(--neon-cyan))",
-          magenta: "hsl(var(--neon-magenta))",
-          green: "hsl(var(--neon-green))",
-          orange: "hsl(var(--neon-orange))",
-          purple: "hsl(var(--neon-purple))",
-          red: "hsl(var(--neon-red))",
-          yellow: "hsl(var(--neon-yellow))",
+        // Noir Detective theme colors
+        noir: {
+          amber: "hsl(38, 100%, 50%)",
+          gold: "hsl(45, 100%, 45%)",
+          crimson: "hsl(0, 70%, 45%)",
+          paper: "hsl(60, 20%, 90%)",
+          rust: "hsl(30, 80%, 50%)",
         },
-        // Category colors
+        // Category colors for challenges
         category: {
           web: "hsl(var(--category-web))",
           pwn: "hsl(var(--category-pwn))",
@@ -125,10 +124,10 @@ export default {
         },
         "pulse-glow": {
           "0%, 100%": {
-            boxShadow: "0 0 5px hsl(var(--primary) / 0.5), 0 0 10px hsl(var(--primary) / 0.3)",
+            boxShadow: "0 0 5px hsl(var(--primary) / 0.3), 0 0 10px hsl(var(--primary) / 0.2)",
           },
           "50%": {
-            boxShadow: "0 0 20px hsl(var(--primary) / 0.8), 0 0 40px hsl(var(--primary) / 0.5)",
+            boxShadow: "0 0 20px hsl(var(--primary) / 0.5), 0 0 40px hsl(var(--primary) / 0.3)",
           },
         },
         "ticker": {
@@ -145,16 +144,36 @@ export default {
         "first-blood": {
           "0%": {
             transform: "scale(1)",
-            boxShadow: "0 0 0 0 hsl(0 100% 50% / 0.7)",
+            boxShadow: "0 0 0 0 hsl(var(--secondary) / 0.7)",
           },
           "50%": {
             transform: "scale(1.05)",
-            boxShadow: "0 0 0 10px hsl(0 100% 50% / 0)",
+            boxShadow: "0 0 0 10px hsl(var(--secondary) / 0)",
           },
           "100%": {
             transform: "scale(1)",
-            boxShadow: "0 0 0 0 hsl(0 100% 50% / 0)",
+            boxShadow: "0 0 0 0 hsl(var(--secondary) / 0)",
           },
+        },
+        "typewriter": {
+          from: { width: "0" },
+          to: { width: "100%" },
+        },
+        "blink": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0" },
+        },
+        "film-grain": {
+          "0%, 100%": { transform: "translate(0, 0)" },
+          "10%": { transform: "translate(-1%, -1%)" },
+          "20%": { transform: "translate(1%, 1%)" },
+          "30%": { transform: "translate(-1%, 1%)" },
+          "40%": { transform: "translate(1%, -1%)" },
+          "50%": { transform: "translate(-1%, 0)" },
+          "60%": { transform: "translate(1%, 0)" },
+          "70%": { transform: "translate(0, 1%)" },
+          "80%": { transform: "translate(0, -1%)" },
+          "90%": { transform: "translate(1%, 1%)" },
         },
       },
       animation: {
@@ -168,6 +187,9 @@ export default {
         "ticker": "ticker 20s linear infinite",
         "glitch": "glitch 2s infinite linear alternate-reverse",
         "first-blood": "first-blood 0.5s ease-out",
+        "typewriter": "typewriter 2s steps(20) forwards",
+        "blink": "blink 1s step-end infinite",
+        "film-grain": "film-grain 0.5s steps(10) infinite",
       },
     },
   },

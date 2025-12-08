@@ -7,60 +7,100 @@ const corsHeaders = {
 
 interface VerifyRequest {
   challenge_id: string;
-  flag_input: string;
+  flag_input?: string;
   flag_hash?: string;
 }
 
-// ReDoS protection: validate regex complexity and execution time
+// Enhanced ReDoS protection constants
+const MAX_INPUT_LENGTH = 500;
 const MAX_REGEX_EXEC_TIME_MS = 100;
+
+// Comprehensive dangerous pattern detection
 const DANGEROUS_PATTERNS = [
-  /\(\.\*\)\+/,      // Nested quantifiers with .*
-  /\(\.\+\)\+/,      // Nested + quantifiers
-  /\([^)]+\)\{\d+,\}/,// Large repetition groups
-  /\(\?:[^)]+\)\+\+/, // Possessive quantifiers abuse
+  /\([^)]*\+[^)]*\)\+/,   // Nested quantifiers like (a+)+
+  /\([^)]*\*[^)]*\)\*/,   // Nested quantifiers like (a*)*
+  /\([^)]*\+[^)]*\)\*/,   // Mixed nested quantifiers (a+)*
+  /\([^)]*\*[^)]*\)\+/,   // Mixed nested quantifiers (a*)+
+  /\.\*\.\*\.\*/,         // Multiple greedy wildcards
+  /\.\+\.\+\.\+/,         // Multiple greedy one-or-more
+  /\([^)]+\|[^)]+\)\+/,   // Alternation with quantifier
+  /\{[\d,]+\}\{[\d,]+\}/, // Consecutive quantifiers
 ];
 
 function isSafeRegex(pattern: string): boolean {
   // Check for known dangerous patterns
   for (const dangerous of DANGEROUS_PATTERNS) {
     if (dangerous.test(pattern)) {
-      console.warn('Potentially unsafe regex pattern detected:', pattern);
+      console.warn('Dangerous regex pattern detected:', pattern);
       return false;
     }
   }
   
-  // Check for excessive nesting or length
-  const nestingDepth = (pattern.match(/\(/g) || []).length;
-  if (nestingDepth > 5 || pattern.length > 500) {
-    console.warn('Regex too complex:', { nestingDepth, length: pattern.length });
+  // Check for excessive quantifiers
+  const quantifierCount = (pattern.match(/[+*?]|\{\d+,?\d*\}/g) || []).length;
+  if (quantifierCount > 10) {
+    console.warn('Too many quantifiers in pattern:', pattern);
+    return false;
+  }
+  
+  // Check for deep nesting
+  let maxDepth = 0;
+  let currentDepth = 0;
+  for (const char of pattern) {
+    if (char === '(') currentDepth++;
+    if (char === ')') currentDepth--;
+    maxDepth = Math.max(maxDepth, currentDepth);
+  }
+  if (maxDepth > 5) {
+    console.warn('Pattern nesting too deep:', pattern);
+    return false;
+  }
+  
+  // Check pattern length
+  if (pattern.length > 500) {
+    console.warn('Pattern too long:', pattern.length);
     return false;
   }
   
   return true;
 }
 
-function safeRegexTest(pattern: string, input: string): boolean {
+// Safe regex test with Promise.race timeout protection
+async function safeRegexTestAsync(pattern: string, input: string): Promise<boolean> {
   // First validate pattern safety
   if (!isSafeRegex(pattern)) {
     console.error('Unsafe regex pattern rejected:', pattern);
     return false;
   }
   
-  // Execute with timeout protection using AbortController
   const startTime = performance.now();
   
   try {
-    const regex = new RegExp(pattern);
-    const result = regex.test(input);
+    // Use Promise.race for timeout protection
+    const result = await Promise.race([
+      new Promise<boolean>((resolve) => {
+        try {
+          const regex = new RegExp(pattern);
+          const testResult = regex.test(input);
+          resolve(testResult);
+        } catch (e) {
+          console.error('Regex compilation error:', e);
+          resolve(false);
+        }
+      }),
+      new Promise<boolean>((_, reject) => 
+        setTimeout(() => reject(new Error('Regex timeout')), MAX_REGEX_EXEC_TIME_MS)
+      )
+    ]);
     
     const execTime = performance.now() - startTime;
-    if (execTime > MAX_REGEX_EXEC_TIME_MS) {
-      console.warn('Regex execution took too long:', execTime, 'ms');
+    if (execTime > 50) {
+      console.warn(`Slow regex execution: ${execTime.toFixed(2)}ms for pattern "${pattern.substring(0, 50)}..."`);
     }
     
     return result;
   } catch (error) {
-    console.error('Regex execution failed:', error);
+    console.error('Regex execution failed or timed out:', error);
     return false;
   }
 }
@@ -123,21 +163,21 @@ Deno.serve(async (req) => {
     const isPaused = settingsMap.game_paused === 'true';
 
     if (isPaused) {
-      return new Response(JSON.stringify({ error: 'CTF is currently paused' }), {
+      return new Response(JSON.stringify({ error: 'Investigation is currently suspended' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     if (startTime && now < startTime) {
-      return new Response(JSON.stringify({ error: 'CTF has not started yet' }), {
+      return new Response(JSON.stringify({ error: 'Investigation has not started yet' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     if (endTime && now > endTime) {
-      return new Response(JSON.stringify({ error: 'CTF has ended' }), {
+      return new Response(JSON.stringify({ error: 'Case has been closed' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -147,7 +187,16 @@ Deno.serve(async (req) => {
     const { challenge_id, flag_input, flag_hash } = body;
 
     if (!challenge_id) {
-      return new Response(JSON.stringify({ error: 'Challenge ID required' }), {
+      return new Response(JSON.stringify({ error: 'Case ID required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Input length validation for ReDoS protection
+    if (flag_input && flag_input.length > MAX_INPUT_LENGTH) {
+      console.warn(`Flag input too long from user ${user.id}: ${flag_input.length} chars`);
+      return new Response(JSON.stringify({ error: 'Evidence input exceeds maximum length' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -163,7 +212,7 @@ Deno.serve(async (req) => {
 
     if (recentAttempts && recentAttempts.length >= 5) {
       return new Response(JSON.stringify({ 
-        error: 'Rate limited. Please wait before trying again.',
+        error: 'Too many attempts. Please wait before trying again.',
         retry_after: 60 
       }), {
         status: 429,
@@ -180,7 +229,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (existingSolve) {
-      return new Response(JSON.stringify({ error: 'You have already solved this challenge' }), {
+      return new Response(JSON.stringify({ error: 'You have already cracked this case' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -194,7 +243,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (challengeError || !challenge) {
-      return new Response(JSON.stringify({ error: 'Challenge not found' }), {
+      return new Response(JSON.stringify({ error: 'Case file not found' }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -211,7 +260,7 @@ Deno.serve(async (req) => {
       const unmetDeps = challenge.dependencies.filter((d: string) => !solvedIds.includes(d));
 
       if (unmetDeps.length > 0) {
-        return new Response(JSON.stringify({ error: 'You must complete prerequisite challenges first' }), {
+        return new Response(JSON.stringify({ error: 'You must complete prerequisite cases first' }), {
           status: 403,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -220,32 +269,31 @@ Deno.serve(async (req) => {
 
     // Verify flag
     let isCorrect = false;
-    const salt = settingsMap.flag_salt || 'zd_s3cr3t_s4lt_2024';
 
     if (challenge.flag_type === 'static') {
       // For static flags, compare hashes
       if (!flag_hash) {
-        return new Response(JSON.stringify({ error: 'Flag hash required for static challenges' }), {
+        return new Response(JSON.stringify({ error: 'Evidence hash required for static cases' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       isCorrect = flag_hash === challenge.flag_hash;
-  } else if (challenge.flag_type === 'regex') {
-      // For regex flags, validate pattern with ReDoS protection
+    } else if (challenge.flag_type === 'regex') {
+      // For regex flags, validate pattern with enhanced ReDoS protection
       if (!flag_input) {
-        return new Response(JSON.stringify({ error: 'Flag input required for regex challenges' }), {
+        return new Response(JSON.stringify({ error: 'Evidence input required for dynamic cases' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       
       if (!challenge.flag_pattern) {
-        console.error('Challenge missing regex pattern:', challenge_id);
+        console.error('Case missing regex pattern:', challenge_id);
         isCorrect = false;
       } else {
-        // Use safe regex test with ReDoS protection
-        isCorrect = safeRegexTest(challenge.flag_pattern, flag_input);
+        // Use async safe regex test with timeout protection
+        isCorrect = await safeRegexTestAsync(challenge.flag_pattern, flag_input);
       }
     }
 
@@ -258,10 +306,16 @@ Deno.serve(async (req) => {
     });
 
     // Check for honeypot
-    const honeypotHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'; // placeholder
-    if (flag_hash === honeypotHash) {
+    const { data: honeypotSetting } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'honeypot_hash')
+      .single();
+
+    if (honeypotSetting && flag_hash === honeypotSetting.value) {
       await supabase.from('profiles').update({ is_banned: true }).eq('id', user.id);
-      return new Response(JSON.stringify({ error: 'Nice try.' }), {
+      console.warn(`User ${user.id} banned for honeypot submission`);
+      return new Response(JSON.stringify({ error: 'Access denied.' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -270,7 +324,7 @@ Deno.serve(async (req) => {
     if (!isCorrect) {
       return new Response(JSON.stringify({ 
         success: false, 
-        message: 'Incorrect flag. Try again.' 
+        message: 'Incorrect evidence. Keep investigating.' 
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -346,8 +400,8 @@ Deno.serve(async (req) => {
       team_id: profile?.team_id || null,
       points: awardedPoints,
       message: isFirstBlood 
-        ? `🩸 ${userProfile?.username || 'Unknown'} got FIRST BLOOD on ${challenge.title}!`
-        : `${userProfile?.username || 'Unknown'} solved ${challenge.title}`,
+        ? `🩸 ${userProfile?.username || 'Unknown'} drew FIRST BLOOD on ${challenge.title}!`
+        : `${userProfile?.username || 'Unknown'} cracked ${challenge.title}`,
     });
 
     return new Response(JSON.stringify({
@@ -356,14 +410,14 @@ Deno.serve(async (req) => {
       is_first_blood: isFirstBlood,
       message: isFirstBlood 
         ? `🩸 FIRST BLOOD! You earned ${awardedPoints} points!`
-        : `Correct! You earned ${awardedPoints} points!`,
+        : `Case cracked! You earned ${awardedPoints} points!`,
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Error verifying flag:', error);
+    console.error('Error verifying evidence:', error);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
