@@ -56,10 +56,14 @@ export function useAdmin() {
         `)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('Error fetching users:', error);
+        throw error;
+      }
+      return data || [];
     },
     enabled: isAdminQuery.data === true,
+    refetchOnMount: true,
   });
 
   const activityLogQuery = useQuery({
@@ -76,10 +80,14 @@ export function useAdmin() {
         .order('created_at', { ascending: false })
         .limit(100);
 
-      if (error) throw error;
-      return data;
+      if (error) {
+        console.error('Error fetching activity log:', error);
+        throw error;
+      }
+      return data || [];
     },
     enabled: isAdminQuery.data === true,
+    refetchOnMount: true,
   });
 
   const createChallengeMutation = useMutation({
