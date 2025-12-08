@@ -370,14 +370,19 @@ export function useAdmin() {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
-
+  const isWaitingForData = isAdminQuery.data === true && !allUsersQuery.data;
+  const isInitializing = isAdminQuery.isLoading;
+  const isFetchingData = allUsersQuery.isLoading || allChallengesQuery.isLoading;
   return {
     isAdmin: isAdminQuery.data || false,
-    // FIX: Wait for ALL queries to finish, not just the admin check
-    isLoadingAdmin: isAdminQuery.isLoading || allUsersQuery.isLoading || allChallengesQuery.isLoading,
+    // FIX: Stay loading if we are waiting for the dependent queries to populate
+    isLoadingAdmin: isInitializing || isFetchingData || isWaitingForData,
+
     challenges: allChallengesQuery.data || [],
     users: allUsersQuery.data || [],
     activityLog: activityLogQuery.data || [],
+
+    // ... keep mutations as they are ...
     createChallenge: createChallengeMutation.mutate,
     updateChallenge: updateChallengeMutation.mutate,
     deleteChallenge: deleteChallengeMutation.mutate,
