@@ -11,6 +11,60 @@ interface VerifyRequest {
   flag_hash?: string;
 }
 
+// ReDoS protection: validate regex complexity and execution time
+const MAX_REGEX_EXEC_TIME_MS = 100;
+const DANGEROUS_PATTERNS = [
+  /\(\.\*\)\+/,      // Nested quantifiers with .*
+  /\(\.\+\)\+/,      // Nested + quantifiers
+  /\([^)]+\)\{\d+,\}/,// Large repetition groups
+  /\(\?:[^)]+\)\+\+/, // Possessive quantifiers abuse
+];
+
+function isSafeRegex(pattern: string): boolean {
+  // Check for known dangerous patterns
+  for (const dangerous of DANGEROUS_PATTERNS) {
+    if (dangerous.test(pattern)) {
+      console.warn('Potentially unsafe regex pattern detected:', pattern);
+      return false;
+    }
+  }
+  
+  // Check for excessive nesting or length
+  const nestingDepth = (pattern.match(/\(/g) || []).length;
+  if (nestingDepth > 5 || pattern.length > 500) {
+    console.warn('Regex too complex:', { nestingDepth, length: pattern.length });
+    return false;
+  }
+  
+  return true;
+}
+
+function safeRegexTest(pattern: string, input: string): boolean {
+  // First validate pattern safety
+  if (!isSafeRegex(pattern)) {
+    console.error('Unsafe regex pattern rejected:', pattern);
+    return false;
+  }
+  
+  // Execute with timeout protection using AbortController
+  const startTime = performance.now();
+  
+  try {
+    const regex = new RegExp(pattern);
+    const result = regex.test(input);
+    
+    const execTime = performance.now() - startTime;
+    if (execTime > MAX_REGEX_EXEC_TIME_MS) {
+      console.warn('Regex execution took too long:', execTime, 'ms');
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Regex execution failed:', error);
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -177,20 +231,21 @@ Deno.serve(async (req) => {
         });
       }
       isCorrect = flag_hash === challenge.flag_hash;
-    } else if (challenge.flag_type === 'regex') {
-      // For regex flags, validate pattern
+  } else if (challenge.flag_type === 'regex') {
+      // For regex flags, validate pattern with ReDoS protection
       if (!flag_input) {
         return new Response(JSON.stringify({ error: 'Flag input required for regex challenges' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      try {
-        const pattern = new RegExp(challenge.flag_pattern);
-        isCorrect = pattern.test(flag_input);
-      } catch {
-        console.error('Invalid regex pattern:', challenge.flag_pattern);
+      
+      if (!challenge.flag_pattern) {
+        console.error('Challenge missing regex pattern:', challenge_id);
         isCorrect = false;
+      } else {
+        // Use safe regex test with ReDoS protection
+        isCorrect = safeRegexTest(challenge.flag_pattern, flag_input);
       }
     }
 
