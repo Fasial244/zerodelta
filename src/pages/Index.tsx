@@ -57,9 +57,15 @@ export default function Index() {
             )}
             {gameState === 'ended' && (
               <div className="text-center">
-                <p className="text-xl font-mono text-muted-foreground">
+                <p className="text-xl font-mono text-muted-foreground mb-3">
                   CTF HAS ENDED
                 </p>
+                <Button asChild size="sm" variant="outline" className="font-mono">
+                  <Link to="/leaderboard">
+                    <Trophy className="w-4 h-4 mr-2" />
+                    View Final Scoreboard
+                  </Link>
+                </Button>
               </div>
             )}
             {gameState === 'paused' && (

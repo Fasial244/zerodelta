@@ -91,6 +91,15 @@ export function AdminChallenges() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validate port if netcat connection type
+    if (form.connection_type === 'netcat') {
+      const portNum = parseInt(form.connection_port);
+      if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+        alert('Port must be a valid number between 1 and 65535');
+        return;
+      }
+    }
+    
     // Build connection_info based on type
     let connection_info: ConnectionInfo = {};
     if (form.connection_type === 'web') {
@@ -99,7 +108,7 @@ export function AdminChallenges() {
       connection_info = { 
         type: 'netcat', 
         host: form.connection_host, 
-        port: parseInt(form.connection_port) || 0 
+        port: parseInt(form.connection_port)
       };
     } else if (form.connection_type === 'file') {
       connection_info = { 
@@ -360,12 +369,14 @@ export function AdminChallenges() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Port</Label>
+                    <Label>Port (1-65535)</Label>
                     <Input
                       type="number"
                       value={form.connection_port}
                       onChange={(e) => setForm({ ...form, connection_port: e.target.value })}
                       placeholder="1337"
+                      min={1}
+                      max={65535}
                     />
                   </div>
                 </div>
