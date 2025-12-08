@@ -1,156 +1,381 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
-import { Users, Star, Monitor, Cpu, Laptop } from 'lucide-react';
+import { Badge, UserCheck, TrendingUp, Crown, Award, Medal } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import DOMPurify from 'dompurify';
 
+interface ConfettiParticle {
+  id: number;
+  x: number;
+  y: number;
+  color: string;
+  delay: number;
+}
+
 export default function Scoreboard() {
-  const { teams, isLoading } = useLeaderboard();
+  const { individual, isLoading } = useLeaderboard();
   const [scrollPosition, setScrollPosition] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [liveUserCount, setLiveUserCount] = useState(0);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [confettiParticles, setConfettiParticles] = useState<ConfettiParticle[]>([]);
+  const [rankUpPlayer, setRankUpPlayer] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevRankingsRef = useRef<Map<string, number>>(new Map());
+  const prevLeaderRef = useRef<string | null>(null);
 
-  // Auto-Scroll Logic with requestAnimationFrame
+  // Track rank changes and trigger animations
   useEffect(() => {
-    let animationFrameId: number;
-    let lastTime = 0;
-    const speed = 0.5; // Pixels per frame
+    if (individual.length === 0) return;
 
-    const animate = (time: number) => {
-      if (!isPaused && containerRef.current) {
-        if (time - lastTime > 16) { // Cap at ~60fps
-          setScrollPosition((prev) => {
-            const maxScroll = containerRef.current!.scrollHeight - containerRef.current!.clientHeight;
-            if (maxScroll <= 0) return 0;
-            if (prev >= maxScroll) return 0; // Loop back to top
-            return prev + speed;
-          });
-          lastTime = time;
-        }
+    const newRankings = new Map<string, number>();
+    individual.forEach((player, index) => {
+      newRankings.set(player.id, index + 1);
+    });
+
+    // Check for rank-up animations
+    const movedUpPlayers: string[] = [];
+    individual.forEach((player, index) => {
+      const currentRank = index + 1;
+      const prevRank = prevRankingsRef.current.get(player.id);
+      if (prevRank && prevRank > currentRank) {
+        movedUpPlayers.push(player.id);
       }
-      animationFrameId = requestAnimationFrame(animate);
+    });
+
+    if (movedUpPlayers.length > 0) {
+      setRankUpPlayer(movedUpPlayers[0]);
+      setTimeout(() => setRankUpPlayer(null), 2000);
+    }
+
+    // Check for new #1 - trigger confetti
+    const currentLeader = individual[0]?.id;
+    if (prevLeaderRef.current && prevLeaderRef.current !== currentLeader && currentLeader) {
+      triggerConfetti();
+    }
+
+    prevRankingsRef.current = newRankings;
+    prevLeaderRef.current = currentLeader || null;
+  }, [individual]);
+
+  // Fetch live user count
+  useEffect(() => {
+    const fetchUserCount = async () => {
+      const { count } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+      setLiveUserCount(count || 0);
     };
 
-    animationFrameId = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [isPaused, teams.length]);
+    fetchUserCount();
 
-  // Sync scroll position to DOM
+    // Subscribe to profile changes for live count
+    const channel = supabase
+      .channel('live-user-count')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        fetchUserCount();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Confetti effect
+  const triggerConfetti = () => {
+    const particles: ConfettiParticle[] = [];
+    const colors = ['#F59E0B', '#DC2626', '#F5F5DC', '#FCD34D', '#EF4444'];
+    
+    for (let i = 0; i < 50; i++) {
+      particles.push({
+        id: i,
+        x: Math.random() * 100,
+        y: -10,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        delay: Math.random() * 0.5,
+      });
+    }
+    
+    setConfettiParticles(particles);
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 3000);
+  };
+
+  // Auto-scroll logic - slower speed for noir aesthetic
+  useEffect(() => {
+    if (isPaused || !containerRef.current) return;
+
+    let animationId: number;
+    const scroll = () => {
+      setScrollPosition(prev => {
+        const maxScroll = containerRef.current 
+          ? containerRef.current.scrollHeight - containerRef.current.clientHeight 
+          : 0;
+        if (prev >= maxScroll) return 0;
+        return prev + 0.2; // Slower scroll for dramatic effect
+      });
+      animationId = requestAnimationFrame(scroll);
+    };
+
+    animationId = requestAnimationFrame(scroll);
+    return () => cancelAnimationFrame(animationId);
+  }, [isPaused]);
+
+  // Sync scroll position
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = scrollPosition;
     }
   }, [scrollPosition]);
 
-  // Get rank icon for top 3
   const getRankIcon = (rank: number) => {
-    if (rank === 1) return <Monitor className="w-10 h-10 text-yellow-500 animate-pulse" />;
-    if (rank === 2) return <Cpu className="w-10 h-10 text-slate-400" />;
-    if (rank === 3) return <Laptop className="w-10 h-10 text-amber-700" />;
-    return <span className="font-mono text-3xl text-muted-foreground">#{rank}</span>;
+    switch (rank) {
+      case 1:
+        return <Crown className="w-6 h-6 text-primary animate-pulse" />;
+      case 2:
+        return <Award className="w-6 h-6 text-muted-foreground" />;
+      case 3:
+        return <Medal className="w-6 h-6 text-secondary" />;
+      default:
+        return <span className="w-6 h-6 flex items-center justify-center text-sm font-mono text-muted-foreground">#{rank}</span>;
+    }
+  };
+
+  const getRowStyle = (rank: number) => {
+    switch (rank) {
+      case 1:
+        return 'bg-primary/20 border-primary/50 shadow-[0_0_30px_hsl(var(--primary)/0.3)]';
+      case 2:
+        return 'bg-muted/30 border-muted/50';
+      case 3:
+        return 'bg-secondary/20 border-secondary/50';
+      default:
+        return 'bg-card/50 border-border/30';
+    }
   };
 
   if (isLoading) {
     return (
-      <div className="h-screen w-screen bg-background flex items-center justify-center">
-        <div className="text-4xl font-mono text-primary animate-pulse">
-          INITIALIZING FEED...
-        </div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <motion.div 
+          className="text-primary font-mono text-xl tracking-wider"
+          animate={{ opacity: [0.3, 1, 0.3] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          LOADING CASE FILES...
+        </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen w-screen bg-background overflow-hidden flex flex-col relative">
-      {/* Header */}
-      <div className="p-8 border-b border-primary/20 bg-background/95 backdrop-blur z-10 flex justify-between items-center shadow-2xl">
-        <h1 className="text-5xl font-black font-mono text-primary tracking-tighter">
-          LIVE RANKINGS
-        </h1>
-        <div className="flex gap-6 text-2xl font-mono text-muted-foreground items-center">
-          <div className="flex items-center gap-2">
-            <Users className="w-8 h-8 text-primary" />
-            <span>{teams.length} TEAMS</span>
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Noir rain overlay effect */}
+      <div className="fixed inset-0 pointer-events-none opacity-10">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            hsl(38 100% 50% / 0.03) 2px,
+            hsl(38 100% 50% / 0.03) 4px
+          )`,
+          animation: 'rain 0.5s linear infinite',
+        }} />
+      </div>
+
+      {/* Confetti */}
+      <AnimatePresence>
+        {showConfetti && (
+          <div className="fixed inset-0 pointer-events-none z-50">
+            {confettiParticles.map((particle) => (
+              <motion.div
+                key={particle.id}
+                className="absolute w-3 h-3 rounded-sm"
+                style={{ 
+                  left: `${particle.x}%`, 
+                  backgroundColor: particle.color,
+                }}
+                initial={{ y: -20, opacity: 1, rotate: 0 }}
+                animate={{ 
+                  y: '100vh', 
+                  opacity: 0, 
+                  rotate: 360,
+                  x: [0, 20, -20, 10, 0],
+                }}
+                transition={{ 
+                  duration: 3, 
+                  delay: particle.delay,
+                  ease: 'easeOut',
+                }}
+              />
+            ))}
           </div>
-          <button 
-            onClick={() => setIsPaused(!isPaused)}
-            className="text-lg border border-border px-6 py-2 rounded-lg hover:bg-accent/10 transition-colors font-mono"
-          >
-            {isPaused ? "▶ RESUME" : "⏸ PAUSE"}
-          </button>
+        )}
+      </AnimatePresence>
+
+      {/* Fixed Header */}
+      <div className="fixed top-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-sm border-b border-primary/30">
+        <div className="flex items-center justify-between px-8 py-4">
+          <div className="flex items-center gap-4">
+            <Badge className="w-8 h-8 text-primary" />
+            <div>
+              <h1 className="text-2xl font-bold text-primary tracking-wider font-mono">
+                INCIDENT BOARD
+              </h1>
+              <p className="text-xs text-muted-foreground font-mono">
+                CASE #2025 // LIVE DETECTIVE RANKINGS
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-6">
+            {/* Live user counter */}
+            <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded border border-primary/30">
+              <UserCheck className="w-5 h-5 text-primary" />
+              <span className="text-primary font-mono font-bold">{liveUserCount}</span>
+              <span className="text-muted-foreground text-sm font-mono">AGENTS</span>
+            </div>
+            
+            <button
+              onClick={() => setIsPaused(!isPaused)}
+              className="px-4 py-2 border border-primary/50 text-primary font-mono text-sm hover:bg-primary/10 transition-colors"
+            >
+              {isPaused ? '▶ RESUME' : '⏸ PAUSE'}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Scrolling List */}
+      {/* Scrolling Content */}
       <div 
         ref={containerRef}
-        className="flex-1 overflow-y-auto p-8 space-y-4"
-        style={{ scrollBehavior: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        className="pt-24 pb-32 px-8 overflow-hidden"
+        style={{ 
+          height: '100vh',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        }}
       >
         <AnimatePresence mode="popLayout">
-          {teams.length === 0 ? (
-            <div className="text-center text-3xl text-muted-foreground font-mono py-20">
-              NO TEAMS YET
-            </div>
-          ) : (
-            teams.map((team, index) => (
+          {individual.map((player, index) => {
+            const rank = index + 1;
+            const isRankingUp = rankUpPlayer === player.id;
+            const sanitizedName = DOMPurify.sanitize(player.username || 'Anonymous');
+            
+            return (
               <motion.div
-                key={team.id}
+                key={player.id}
                 layout
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ delay: index * 0.03 }}
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ 
+                  opacity: 1, 
+                  x: 0,
+                  scale: isRankingUp ? 1.02 : 1,
+                }}
+                exit={{ opacity: 0, x: -50 }}
+                transition={{ duration: 0.3 }}
                 className={`
-                  flex items-center gap-6 p-6 rounded-xl border-2 transition-all
-                  ${index === 0 ? 'bg-yellow-500/10 border-yellow-500/50 scale-[1.02] shadow-[0_0_50px_rgba(234,179,8,0.2)] my-4' : 
-                    index === 1 ? 'bg-slate-400/10 border-slate-400/50' :
-                    index === 2 ? 'bg-amber-700/10 border-amber-700/50' : 
-                    'bg-card/50 border-border'}
+                  relative flex items-center gap-6 p-4 mb-3 border rounded
+                  ${getRowStyle(rank)}
+                  ${isRankingUp ? 'ring-2 ring-primary/50' : ''}
+                  transition-all duration-300
                 `}
               >
+                {/* Rank-up indicator */}
+                {isRankingUp && (
+                  <motion.div
+                    className="absolute -left-8 text-primary"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <TrendingUp className="w-6 h-6" />
+                  </motion.div>
+                )}
+
                 {/* Rank */}
-                <div className="w-24 flex justify-center">
-                  {getRankIcon(index + 1)}
+                <div className="w-16 flex justify-center">
+                  {getRankIcon(rank)}
                 </div>
 
-                {/* Team Info */}
+                {/* Avatar */}
+                <div className={`
+                  w-12 h-12 rounded-full overflow-hidden border-2
+                  ${rank === 1 ? 'border-primary shadow-[0_0_15px_hsl(var(--primary)/0.5)]' : 
+                    rank === 2 ? 'border-muted' : 
+                    rank === 3 ? 'border-secondary' : 'border-border'}
+                `}>
+                  {player.avatar_url ? (
+                    <img 
+                      src={player.avatar_url} 
+                      alt={sanitizedName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-muted flex items-center justify-center">
+                      <span className="text-lg font-bold text-muted-foreground">
+                        {sanitizedName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Name & Stats */}
                 <div className="flex-1">
-                  <h2 className={`text-4xl font-bold tracking-tight mb-2 ${index === 0 ? 'text-yellow-500' : 'text-foreground'}`}>
-                    {DOMPurify.sanitize(team.name)}
-                  </h2>
-                  <div className="flex items-center gap-2 text-muted-foreground text-xl">
-                    {index === 0 && <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />}
-                    <span>{team.member_count} OPERATORS</span>
+                  <div className="flex items-center gap-2">
+                    <span 
+                      className={`font-mono font-bold text-lg ${rank <= 3 ? 'text-primary' : 'text-foreground'}`}
+                      dangerouslySetInnerHTML={{ __html: sanitizedName }}
+                    />
+                    {player.first_bloods > 0 && (
+                      <span className="text-secondary text-sm">🩸 ×{player.first_bloods}</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground font-mono">
+                    {player.solve_count} CASES SOLVED
                   </div>
                 </div>
 
-                {/* Score */}
+                {/* Points */}
                 <div className="text-right">
-                  <motion.div 
-                    key={team.score}
-                    initial={{ scale: 1.3, color: 'hsl(var(--accent))' }}
-                    animate={{ scale: 1, color: index === 0 ? '#eab308' : 'hsl(var(--primary))' }}
-                    className="text-5xl font-black font-mono"
-                  >
-                    {team.score.toLocaleString()}
-                  </motion.div>
-                  <div className="text-sm font-mono text-muted-foreground mt-1">POINTS</div>
+                  <div className={`text-2xl font-bold font-mono ${rank === 1 ? 'text-primary' : 'text-foreground'}`}>
+                    {player.total_points.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-muted-foreground font-mono">POINTS</div>
                 </div>
+
+                {/* Top 3 "Most Wanted" badge */}
+                {rank <= 3 && (
+                  <div className="absolute -top-2 -right-2 bg-primary text-background text-xs font-mono px-2 py-0.5 rounded">
+                    {rank === 1 ? 'LEAD DETECTIVE' : rank === 2 ? 'SENIOR AGENT' : 'AGENT'}
+                  </div>
+                )}
               </motion.div>
-            ))
-          )}
+            );
+          })}
         </AnimatePresence>
-        
-        {/* Buffer at bottom for smooth looping */}
+
+        {/* Buffer for looping scroll */}
         <div className="h-32" />
       </div>
 
-      {/* Gradient overlay at bottom */}
-      <div className="fixed bottom-0 left-0 w-full h-32 bg-gradient-to-t from-background to-transparent pointer-events-none z-20" />
-      
-      {/* Border frame */}
-      <div className="fixed inset-0 pointer-events-none border-[12px] border-primary/5 z-50" />
+      {/* Bottom gradient */}
+      <div className="fixed bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+
+      {/* Footer signature */}
+      <div className="fixed bottom-4 left-0 right-0 text-center text-xs text-muted-foreground font-mono opacity-50">
+        CASE #2025 // LEAD INVESTIGATOR: 0xfsl (Faisal AL-Jaber)
+      </div>
+
+      <style>{`
+        @keyframes rain {
+          from { transform: translateY(0); }
+          to { transform: translateY(4px); }
+        }
+      `}</style>
     </div>
   );
 }
