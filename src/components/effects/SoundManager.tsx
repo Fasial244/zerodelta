@@ -1,12 +1,16 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback, ReactNode } from 'react';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 
-type SoundType = 'bgm' | 'success' | 'fail' | 'firstblood' | 'rankup' | 'rankup_top' | 'win' | 'unlock' | 'game_over';
+type SoundType = 'bgm' | 'success' | 'fail' | 'firstblood' | 'rankup' | 'rankup_top' | 'win' | 'unlock' | 'game_over' | 'lead_taken' | 'top3_entry';
 
 interface SoundContextType {
   play: (type: SoundType) => void;
   toggleMute: () => void;
   isMuted: boolean;
+  bgmVolume: number;
+  sfxVolume: number;
+  setBgmVolume: (vol: number) => void;
+  setSfxVolume: (vol: number) => void;
 }
 
 const SoundContext = createContext<SoundContextType | undefined>(undefined);
@@ -21,6 +25,8 @@ const SOUND_PATHS: Record<SoundType, string> = {
   win: '/sounds/victory.mp3',
   unlock: '/sounds/unlock.mp3',
   game_over: '/sounds/game-over.mp3',
+  lead_taken: '/sounds/rank-1.mp3', // Reuse rank-1 sound
+  top3_entry: '/sounds/unlock.mp3', // Reuse unlock sound
 };
 
 export function SoundProvider({ children }: { children: ReactNode }) {
@@ -28,6 +34,15 @@ export function SoundProvider({ children }: { children: ReactNode }) {
     const saved = localStorage.getItem('zerodelta-muted');
     return saved === 'true';
   });
+  const [bgmVolume, setBgmVolumeState] = useState(() => {
+    const saved = localStorage.getItem('zerodelta-bgm-volume');
+    return saved ? parseFloat(saved) : 0.3;
+  });
+  const [sfxVolume, setSfxVolumeState] = useState(() => {
+    const saved = localStorage.getItem('zerodelta-sfx-volume');
+    return saved ? parseFloat(saved) : 0.5;
+  });
+
   const { gameState } = useSystemSettings();
   const soundsRef = useRef<Map<SoundType, HTMLAudioElement>>(new Map());
   const bgmRef = useRef<HTMLAudioElement | null>(null);
@@ -40,10 +55,10 @@ export function SoundProvider({ children }: { children: ReactNode }) {
         const audio = new Audio(SOUND_PATHS[type]);
         if (type === 'bgm') {
           audio.loop = true;
-          audio.volume = 0.3;
+          audio.volume = bgmVolume;
           bgmRef.current = audio;
         } else {
-          audio.volume = 0.5;
+          audio.volume = sfxVolume;
         }
         soundsRef.current.set(type, audio);
       } catch (e) {
@@ -52,6 +67,26 @@ export function SoundProvider({ children }: { children: ReactNode }) {
       }
     }
     return soundsRef.current.get(type) || null;
+  }, [bgmVolume, sfxVolume]);
+
+  // Update volumes when changed
+  const setBgmVolume = useCallback((vol: number) => {
+    setBgmVolumeState(vol);
+    localStorage.setItem('zerodelta-bgm-volume', String(vol));
+    if (bgmRef.current) {
+      bgmRef.current.volume = vol;
+    }
+  }, []);
+
+  const setSfxVolume = useCallback((vol: number) => {
+    setSfxVolumeState(vol);
+    localStorage.setItem('zerodelta-sfx-volume', String(vol));
+    // Update all SFX volumes
+    soundsRef.current.forEach((audio, type) => {
+      if (type !== 'bgm') {
+        audio.volume = vol;
+      }
+    });
   }, []);
 
   // Handle BGM based on game state
@@ -59,24 +94,27 @@ export function SoundProvider({ children }: { children: ReactNode }) {
     const bgm = getSound('bgm');
     if (!bgm) return;
 
+    bgm.volume = bgmVolume;
+
     if (gameState === 'active' && !isMuted) {
       bgm.play().catch(e => console.log('Audio autoplay blocked:', e));
     } else {
       bgm.pause();
     }
-  }, [gameState, isMuted, getSound]);
+  }, [gameState, isMuted, getSound, bgmVolume]);
 
   // Play game over sound when game ends
   useEffect(() => {
     if (prevGameState.current === 'active' && gameState === 'ended' && !isMuted) {
       const gameOverSound = getSound('game_over');
       if (gameOverSound) {
+        gameOverSound.volume = sfxVolume;
         gameOverSound.currentTime = 0;
         gameOverSound.play().catch(e => console.log('Game over sound error:', e));
       }
     }
     prevGameState.current = gameState;
-  }, [gameState, isMuted, getSound]);
+  }, [gameState, isMuted, getSound, sfxVolume]);
 
   // Persist mute preference
   useEffect(() => {
@@ -87,10 +125,11 @@ export function SoundProvider({ children }: { children: ReactNode }) {
     if (isMuted) return;
     const audio = getSound(type);
     if (audio && type !== 'bgm') {
+      audio.volume = sfxVolume;
       audio.currentTime = 0;
       audio.play().catch(e => console.log('Sound error:', e));
     }
-  }, [isMuted, getSound]);
+  }, [isMuted, getSound, sfxVolume]);
 
   const toggleMute = useCallback(() => {
     setIsMuted(prev => {
@@ -108,7 +147,15 @@ export function SoundProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <SoundContext.Provider value={{ play, toggleMute, isMuted }}>
+    <SoundContext.Provider value={{ 
+      play, 
+      toggleMute, 
+      isMuted, 
+      bgmVolume, 
+      sfxVolume, 
+      setBgmVolume, 
+      setSfxVolume 
+    }}>
       {children}
     </SoundContext.Provider>
   );
@@ -122,6 +169,10 @@ export function useSound() {
       play: () => {},
       toggleMute: () => {},
       isMuted: false,
+      bgmVolume: 0.3,
+      sfxVolume: 0.5,
+      setBgmVolume: () => {},
+      setSfxVolume: () => {},
     };
   }
   return context;
