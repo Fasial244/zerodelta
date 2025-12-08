@@ -13,6 +13,7 @@ import Leaderboard from "./pages/Leaderboard";
 import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
 import Activity from "./pages/Activity";
+import Scoreboard from "./pages/Scoreboard";
 import NotFound from "./pages/NotFound";
 import { MaintenanceWrapper } from "./components/MaintenanceWrapper";
 
@@ -26,19 +27,25 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            <MaintenanceWrapper>
-              <CelebrationOverlay />
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/challenges" element={<Challenges />} />
-                <Route path="/leaderboard" element={<Leaderboard />} />
-                <Route path="/admin" element={<Admin />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/activity" element={<Activity />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </MaintenanceWrapper>
+            {/* Scoreboard outside MaintenanceWrapper so it works during maintenance */}
+            <Routes>
+              <Route path="/scoreboard" element={<Scoreboard />} />
+              <Route path="*" element={
+                <MaintenanceWrapper>
+                  <CelebrationOverlay />
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/challenges" element={<Challenges />} />
+                    <Route path="/leaderboard" element={<Leaderboard />} />
+                    <Route path="/admin" element={<Admin />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/activity" element={<Activity />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </MaintenanceWrapper>
+              } />
+            </Routes>
           </AuthProvider>
         </BrowserRouter>
       </SoundProvider>

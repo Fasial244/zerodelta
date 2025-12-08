@@ -6,18 +6,30 @@ import { AdminSettings } from '@/components/admin/AdminSettings';
 import { AdminActivity } from '@/components/admin/AdminActivity';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Shield, Users, Settings, Activity, Target } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Shield, Users, Settings, Activity, Target, Tv } from 'lucide-react';
 
 export default function Admin() {
   return (
     <ProtectedAdminRoute>
       <Layout>
         <div className="container mx-auto px-4 pt-28 pb-8">
-          <div className="flex items-center gap-3 mb-8">
-            <Shield className="w-8 h-8 text-primary" />
-            <h1 className="text-3xl font-bold text-glow-cyan font-mono">
-              ADMIN CONTROL PANEL
-            </h1>
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <Shield className="w-8 h-8 text-primary" />
+              <h1 className="text-3xl font-bold text-primary font-mono">
+                ADMIN CONTROL PANEL
+              </h1>
+            </div>
+            
+            <Button 
+              variant="outline" 
+              className="border-accent text-accent hover:bg-accent/10 gap-2"
+              onClick={() => window.open('/scoreboard', '_blank', 'noopener,noreferrer')}
+            >
+              <Tv className="w-4 h-4" />
+              LAUNCH BIG SCREEN
+            </Button>
           </div>
 
           <Tabs defaultValue="challenges" className="space-y-6">
