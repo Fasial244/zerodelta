@@ -47,15 +47,26 @@ export function MobileChallengeList({
             transition={{ delay: index * 0.05 }}
             onClick={() => isUnlocked && onSelectChallenge(challenge)}
             className={`
-              p-4 rounded-lg border transition-all duration-200
-              ${isUnlocked ? 'cursor-pointer hover:scale-[1.02]' : 'opacity-50 cursor-not-allowed'}
+              relative p-4 rounded-lg border transition-all duration-200 overflow-hidden
+              ${isUnlocked ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-not-allowed'}
               ${isSolved ? 'border-accent bg-accent/10' : categoryStyles[challenge.category] || categoryStyles.Other}
             `}
           >
-            <div className="flex items-start justify-between gap-3">
+            {/* Locked overlay with blur */}
+            {!isUnlocked && (
+              <div className="absolute inset-0 z-10 bg-background/60 backdrop-blur-sm flex items-center justify-center">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="w-8 h-8 rounded-full bg-destructive/20 border-2 border-destructive flex items-center justify-center">
+                    <Lock className="w-4 h-4 text-destructive" />
+                  </div>
+                  <span className="text-sm font-mono uppercase">Solve dependencies first</span>
+                </div>
+              </div>
+            )}
+
+            <div className={`flex items-start justify-between gap-3 ${!isUnlocked ? 'blur-[2px]' : ''}`}>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  {!isUnlocked && <Lock className="w-4 h-4 text-muted-foreground" />}
                   {isSolved && <CheckCircle className="w-4 h-4 text-accent" />}
                   {hasFirstBlood && <Droplets className="w-4 h-4 text-destructive" />}
                   <h3 className="font-bold text-foreground truncate">
