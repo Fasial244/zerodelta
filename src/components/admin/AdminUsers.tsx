@@ -19,7 +19,7 @@ import {
 import DOMPurify from 'dompurify';
 
 export function AdminUsers() {
-  const { users, banUser, unlockUser, promoteToAdmin, resetUserScore } = useAdmin();
+  const { users, banUser, unlockUser, promoteToAdmin, resetUserScore, isLoadingAdmin } = useAdmin();
   const [search, setSearch] = useState('');
 
   const filteredUsers = users.filter((user: any) =>
@@ -29,6 +29,15 @@ export function AdminUsers() {
   const calculateTotalPoints = (solves: any[]) => {
     return solves?.reduce((sum, s) => sum + (s.points_awarded || 0), 0) || 0;
   };
+
+  if (isLoadingAdmin) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-muted-foreground font-mono animate-pulse">Loading users...</p>
+      </div>
+    );
+  }
+
 
   return (
     <div className="space-y-6">

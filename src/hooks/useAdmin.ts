@@ -22,10 +22,16 @@ export function useAdmin() {
         .eq('role', 'admin')
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error checking admin status:', error);
+        throw error;
+      }
+      console.log('Admin check result:', data, 'for user:', user.id);
       return !!data;
     },
     enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const allChallengesQuery = useQuery({
@@ -44,8 +50,9 @@ export function useAdmin() {
   });
 
   const allUsersQuery = useQuery({
-    queryKey: ['admin-users'],
+    queryKey: ['admin-users', isAdminQuery.data],
     queryFn: async () => {
+      console.log('Fetching users for admin panel...');
       // Admin user management - explicit columns
       const { data, error } = await supabase
         .from('profiles')
@@ -60,15 +67,18 @@ export function useAdmin() {
         console.error('Error fetching users:', error);
         throw error;
       }
+      console.log('Fetched users:', data?.length || 0);
       return data || [];
     },
     enabled: isAdminQuery.data === true,
-    refetchOnMount: true,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const activityLogQuery = useQuery({
-    queryKey: ['admin-activity'],
+    queryKey: ['admin-activity', isAdminQuery.data],
     queryFn: async () => {
+      console.log('Fetching activity log for admin panel...');
       // Admin activity log - explicit columns
       const { data, error } = await supabase
         .from('activity_log')
@@ -84,10 +94,12 @@ export function useAdmin() {
         console.error('Error fetching activity log:', error);
         throw error;
       }
+      console.log('Fetched activity log:', data?.length || 0);
       return data || [];
     },
     enabled: isAdminQuery.data === true,
-    refetchOnMount: true,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const createChallengeMutation = useMutation({
@@ -377,7 +389,7 @@ export function useAdmin() {
 
   return {
     isAdmin: isAdminQuery.data || false,
-    isLoadingAdmin: isAdminQuery.isLoading,
+    isLoadingAdmin: isAdminQuery.isLoading || allUsersQuery.isLoading,
     challenges: allChallengesQuery.data || [],
     users: allUsersQuery.data || [],
     activityLog: activityLogQuery.data || [],
