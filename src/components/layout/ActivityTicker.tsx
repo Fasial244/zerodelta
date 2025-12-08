@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { Droplets, Trophy, Megaphone, Users } from 'lucide-react';
+import DOMPurify from 'dompurify';
 
 interface ActivityEvent {
   id: string;
@@ -54,7 +55,7 @@ export function ActivityTicker() {
   async function fetchRecentEvents() {
     const { data } = await supabase
       .from('activity_log')
-      .select('*')
+      .select('id, event_type, message, points, created_at')
       .order('created_at', { ascending: false })
       .limit(20);
 
@@ -91,7 +92,7 @@ export function ActivityTicker() {
             <Icon className={`h-4 w-4 ${getEventColor(currentEvent?.event_type)}`} />
             <span className="text-muted-foreground">[{formatTime(currentEvent?.created_at)}]</span>
             <span className={getEventColor(currentEvent?.event_type)}>
-              {currentEvent?.message}
+              {DOMPurify.sanitize(currentEvent?.message || '')}
             </span>
             {currentEvent?.points && (
               <span className="text-neon-green">+{currentEvent.points} PTS</span>

@@ -514,6 +514,17 @@ export type Database = {
         Returns: boolean
       }
       join_team_via_code: { Args: { code_input: string }; Returns: Json }
+      log_activity: {
+        Args: {
+          p_challenge_id?: string
+          p_event_type: Database["public"]["Enums"]["event_type"]
+          p_message: string
+          p_points?: number
+          p_team_id?: string
+          p_user_id?: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "user"
