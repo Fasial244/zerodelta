@@ -170,11 +170,11 @@ export function ChallengeModal({ challenge, onClose, isGameEnded = false }: Chal
                   </div>
                 )}
 
-                {connectionInfo.type === 'download' && connectionInfo.file_url && (
+                {(connectionInfo.type === 'download' || connectionInfo.type === 'file') && (connectionInfo.file_url || connectionInfo.url) && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => window.open(connectionInfo.file_url as string, '_blank')}
+                    onClick={() => window.open((connectionInfo.file_url || connectionInfo.url) as string, '_blank')}
                   >
                     <Download className="w-4 h-4 mr-2" />
                     DOWNLOAD FILE
@@ -184,7 +184,12 @@ export function ChallengeModal({ challenge, onClose, isGameEnded = false }: Chal
             )}
 
             {/* Flag submission */}
-            {!isSolved && (
+            {isSolved ? (
+              <div className="p-4 rounded-lg bg-primary/20 border border-primary/50 text-center">
+                <p className="font-mono text-primary font-bold text-lg">✓ CHALLENGE SOLVED</p>
+                <p className="text-sm text-muted-foreground mt-1">You've already captured this flag</p>
+              </div>
+            ) : (
               <form onSubmit={handleSubmit} className="space-y-3">
                 <div className="flex gap-2">
                   <Input
