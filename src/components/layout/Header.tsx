@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
+import { useSound } from '@/components/effects/SoundManager';
 import { 
   Shield, 
   LogOut, 
@@ -10,7 +11,9 @@ import {
   Settings, 
   Trophy,
   Map,
-  Activity
+  Activity,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -23,6 +26,7 @@ import {
 export function Header() {
   const { user, profile, isAdmin, signOut } = useAuth();
   const { settings, countdown, gameState } = useSystemSettings();
+  const { isMuted, toggleMute } = useSound();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -88,6 +92,21 @@ export function Header() {
                   </Button>
                 </Link>
               )}
+
+              {/* Mute Toggle */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleMute}
+                className="h-8 w-8"
+                title={isMuted ? 'Unmute' : 'Mute'}
+              >
+                {isMuted ? (
+                  <VolumeX className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <Volume2 className="h-4 w-4 text-primary" />
+                )}
+              </Button>
 
               {/* User Menu */}
               <DropdownMenu>

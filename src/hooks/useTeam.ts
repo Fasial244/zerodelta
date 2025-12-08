@@ -13,9 +13,9 @@ export function useTeam() {
     queryFn: async () => {
       if (!profile?.team_id) return null;
       
-      // Use teams_public view with explicit columns - join_code is only visible to team members
+      // Fetch team from raw table (only team members can access their team's join_code)
       const { data: teamData, error: teamError } = await supabase
-        .from('teams_public')
+        .from('teams')
         .select('id, name, score, join_code, created_at')
         .eq('id', profile.team_id)
         .single();
@@ -30,7 +30,7 @@ export function useTeam() {
 
       if (membersError) throw membersError;
 
-      return { ...teamData, profiles: members };
+      return { ...teamData, profiles: members || [] };
     },
     enabled: !!profile?.team_id,
   });
