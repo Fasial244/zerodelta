@@ -61,10 +61,10 @@ export function useAuth() {
 
   async function fetchUserData(user: User, session: Session) {
     try {
-      // Fetch profile
+      // Fetch profile with explicit columns
       const { data: profile } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, username, avatar_url, team_id, is_banned, is_locked, created_at')
         .eq('id', user.id)
         .maybeSingle();
 
