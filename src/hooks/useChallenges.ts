@@ -29,6 +29,8 @@ export function useChallenges() {
   const challengesQuery = useQuery({
     queryKey: ['challenges'],
     queryFn: async () => {
+      console.log('[useChallenges] Fetching challenges from challenges_public view...');
+      
       // Use the secure public view with explicit columns (no flag_hash or flag_pattern)
       const { data, error } = await supabase
         .from('challenges_public')
@@ -36,7 +38,12 @@ export function useChallenges() {
         .eq('is_active', true)
         .order('points', { ascending: true });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[useChallenges] Error fetching challenges:', error);
+        throw error;
+      }
+      
+      console.log('[useChallenges] Fetched challenges:', data?.length || 0);
       return data as Challenge[];
     },
   });
