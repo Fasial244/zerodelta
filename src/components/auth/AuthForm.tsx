@@ -65,12 +65,13 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
         const { error } = await signIn(email.trim(), password);
         if (error) throw error;
         toast({ title: 'Welcome back!', description: 'Successfully logged in.' });
+        // Don't call onSuccess - let Auth.tsx useEffect handle redirect via user state change
       } else {
         const { error } = await signUp(email.trim(), password, username.trim());
         if (error) throw error;
         toast({ title: 'Account created!', description: 'You can now log in.' });
+        // Don't call onSuccess - let Auth.tsx useEffect handle redirect via user state change
       }
-      onSuccess?.();
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
       toast({
