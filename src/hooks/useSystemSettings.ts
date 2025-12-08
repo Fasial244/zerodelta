@@ -46,7 +46,7 @@ export function useSystemSettings() {
     try {
       const { data, error } = await supabase
         .from('system_settings')
-        .select('*');
+        .select('key, value');
 
       if (error) throw error;
 
