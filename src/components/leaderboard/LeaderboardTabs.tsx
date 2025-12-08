@@ -1,76 +1,46 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Monitor, Cpu, Laptop, Users, User, Droplet, Shield } from 'lucide-react';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Crown, Award, Medal, Droplet } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import DOMPurify from 'dompurify';
 
 export function LeaderboardTabs() {
-  const { individual, teams, isLoading } = useLeaderboard();
+  const { individual, isLoading } = useLeaderboard();
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-pulse text-primary font-mono text-xl">
-          [ SYNCHRONIZING NEURAL NET... ]
-        </div>
+      <div className="text-center py-8 text-muted-foreground font-mono animate-pulse">
+        LOADING CASE FILES...
       </div>
     );
   }
 
   return (
-    <Tabs defaultValue="individual" className="w-full">
-      <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8 bg-background/40 border border-primary/20">
-        <TabsTrigger value="individual" className="font-mono data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
-          <User className="w-4 h-4 mr-2" />
-          OPERATIVES
-        </TabsTrigger>
-        <TabsTrigger value="team" className="font-mono data-[state=active]:bg-primary/20 data-[state=active]:text-primary">
-          <Users className="w-4 h-4 mr-2" />
-          FACTIONS
-        </TabsTrigger>
-      </TabsList>
+    <div className="space-y-2">
+      <div className="text-xs text-muted-foreground font-mono mb-4 px-2">
+        {individual.length} REGISTERED AGENTS
+      </div>
+      
+      <AnimatePresence mode="popLayout">
+        {individual.map((entry, index) => (
+          <LeaderboardRow
+            key={entry.id}
+            rank={index + 1}
+            name={DOMPurify.sanitize(entry.username)}
+            points={entry.total_points}
+            avatar={entry.avatar_url}
+            solves={entry.solve_count}
+            firstBloods={entry.first_bloods}
+          />
+        ))}
+      </AnimatePresence>
 
-      <TabsContent value="individual" className="space-y-3">
-        <AnimatePresence mode="popLayout">
-          {individual.length === 0 ? (
-            <p className="text-center text-muted-foreground font-mono py-8">No data yet...</p>
-          ) : (
-            individual.map((entry, index) => (
-              <LeaderboardRow
-                key={entry.id}
-                rank={index + 1}
-                name={DOMPurify.sanitize(entry.username)}
-                points={entry.total_points}
-                subtitle={entry.team_name || 'Rogue Agent'}
-                avatar={entry.avatar_url}
-                solves={entry.solve_count}
-                firstBloods={entry.first_bloods}
-              />
-            ))
-          )}
-        </AnimatePresence>
-      </TabsContent>
-
-      <TabsContent value="team" className="space-y-3">
-        <AnimatePresence mode="popLayout">
-          {teams.length === 0 ? (
-            <p className="text-center text-muted-foreground font-mono py-8">No team scores yet...</p>
-          ) : (
-            teams.map((team, index) => (
-              <LeaderboardRow
-                key={team.id}
-                rank={index + 1}
-                name={DOMPurify.sanitize(team.name)}
-                points={team.score}
-                subtitle={`${team.member_count} operator${team.member_count !== 1 ? 's' : ''}`}
-                isTeam
-              />
-            ))
-          )}
-        </AnimatePresence>
-      </TabsContent>
-    </Tabs>
+      {individual.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground font-mono">
+          NO AGENTS REGISTERED YET
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -78,100 +48,94 @@ interface LeaderboardRowProps {
   rank: number;
   name: string;
   points: number;
-  subtitle?: string;
-  avatar?: string | null;
-  solves?: number;
-  firstBloods?: number;
-  isTeam?: boolean;
+  avatar: string | null;
+  solves: number;
+  firstBloods: number;
 }
 
-function LeaderboardRow({
-  rank,
-  name,
-  points,
-  subtitle,
-  avatar,
-  solves,
-  firstBloods,
-  isTeam,
-}: LeaderboardRowProps) {
-  // Computer icons for top 3
+function LeaderboardRow({ rank, name, points, avatar, solves, firstBloods }: LeaderboardRowProps) {
   const getRankIcon = () => {
-    if (rank === 1) return <Monitor className="w-7 h-7 text-yellow-500 animate-pulse" />;
-    if (rank === 2) return <Cpu className="w-7 h-7 text-slate-400" />;
-    if (rank === 3) return <Laptop className="w-7 h-7 text-amber-700" />;
-    return <span className="font-mono text-lg text-muted-foreground">#{rank}</span>;
+    switch (rank) {
+      case 1:
+        return <Crown className="w-5 h-5 text-primary" />;
+      case 2:
+        return <Award className="w-5 h-5 text-muted-foreground" />;
+      case 3:
+        return <Medal className="w-5 h-5 text-secondary" />;
+      default:
+        return <span className="text-sm font-mono text-muted-foreground">#{rank}</span>;
+    }
   };
 
-  // Special styling for top 3
   const getRowStyle = () => {
-    if (rank === 1) return 'bg-yellow-500/10 border-yellow-500/50 shadow-[0_0_30px_rgba(234,179,8,0.15)]';
-    if (rank === 2) return 'bg-slate-400/10 border-slate-400/50';
-    if (rank === 3) return 'bg-amber-700/10 border-amber-700/50';
-    return 'bg-card/50 border-border hover:border-primary/50';
+    switch (rank) {
+      case 1:
+        return 'bg-primary/10 border-primary/40 shadow-[0_0_20px_hsl(var(--primary)/0.15)]';
+      case 2:
+        return 'bg-muted/20 border-muted/40';
+      case 3:
+        return 'bg-secondary/10 border-secondary/40';
+      default:
+        return 'bg-card/30 border-border/30 hover:bg-card/50';
+    }
   };
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
       whileHover={{ scale: 1.01 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-colors ${getRowStyle()}`}
+      transition={{ duration: 0.2 }}
+      className={`
+        flex items-center gap-4 p-3 rounded border transition-all
+        ${getRowStyle()}
+      `}
     >
-      {/* Rank Column */}
-      <div className="w-14 flex justify-center font-bold">
+      {/* Rank */}
+      <div className="w-10 flex justify-center">
         {getRankIcon()}
       </div>
 
       {/* Avatar */}
-      {!isTeam ? (
-        <Avatar className={`w-11 h-11 border-2 ${rank <= 3 ? 'border-primary' : 'border-transparent'}`}>
-          <AvatarImage src={avatar || undefined} />
-          <AvatarFallback className="bg-primary/10 text-primary font-mono font-bold">
-            {name.slice(0, 2).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-      ) : (
-        <div className={`w-11 h-11 rounded-full flex items-center justify-center border-2 ${rank <= 3 ? 'border-primary bg-primary/10' : 'border-border bg-card'}`}>
-          <Users className="w-5 h-5 text-primary" />
-        </div>
-      )}
+      <Avatar className={`
+        w-10 h-10 border-2
+        ${rank === 1 ? 'border-primary' : 
+          rank === 2 ? 'border-muted' : 
+          rank === 3 ? 'border-secondary' : 'border-border'}
+      `}>
+        <AvatarImage src={avatar || undefined} />
+        <AvatarFallback className="bg-muted text-muted-foreground font-mono">
+          {name.charAt(0).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
 
-      {/* Info */}
+      {/* Name & Stats */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className={`font-bold text-lg truncate ${rank === 1 ? 'text-yellow-500' : 'text-foreground'}`}>
-            {name}
-          </span>
-          {firstBloods !== undefined && firstBloods > 0 && (
-            <div className="flex items-center gap-1 px-2 py-0.5 bg-destructive/20 rounded text-destructive text-xs font-bold border border-destructive/50">
+          <span 
+            className={`font-mono font-medium truncate ${rank <= 3 ? 'text-primary' : 'text-foreground'}`}
+            dangerouslySetInnerHTML={{ __html: name }}
+          />
+          {firstBloods > 0 && (
+            <span className="flex items-center gap-0.5 text-secondary text-xs">
               <Droplet className="w-3 h-3 fill-current" />
               {firstBloods}
-            </div>
+            </span>
           )}
         </div>
-        <div className="text-sm text-muted-foreground font-mono flex items-center gap-2">
-          <Shield className="w-3 h-3" />
-          {subtitle}
+        <div className="text-xs text-muted-foreground font-mono">
+          {solves} case{solves !== 1 ? 's' : ''} solved
         </div>
       </div>
 
-      {/* Score */}
+      {/* Points */}
       <div className="text-right">
-        <motion.div 
-          key={points}
-          initial={{ scale: 1.4, color: 'hsl(var(--accent))' }}
-          animate={{ scale: 1, color: rank === 1 ? '#eab308' : 'hsl(var(--foreground))' }}
-          className="text-2xl font-black font-mono"
-        >
+        <div className={`font-mono font-bold ${rank === 1 ? 'text-primary text-lg' : 'text-foreground'}`}>
           {points.toLocaleString()}
-        </motion.div>
-        <div className="text-xs text-muted-foreground font-mono">
-          {solves !== undefined ? `${solves} solve${solves !== 1 ? 's' : ''}` : 'PTS'}
         </div>
+        <div className="text-xs text-muted-foreground font-mono">pts</div>
       </div>
     </motion.div>
   );
