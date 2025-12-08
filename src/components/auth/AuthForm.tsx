@@ -6,6 +6,12 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { Shield, User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { z } from 'zod';
+
+// Validation schemas
+const emailSchema = z.string().trim().email('Invalid email address').max(255, 'Email too long');
+const passwordSchema = z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password too long');
+const usernameSchema = z.string().trim().min(3, 'Username must be at least 3 characters').max(32, 'Username too long').regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens');
 
 interface AuthFormProps {
   onSuccess?: () => void;
@@ -18,32 +24,58 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
   const [username, setUsername] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string; password?: string; username?: string }>({});
   
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const { toast } = useToast();
 
+  const validateForm = (): boolean => {
+    const newErrors: { email?: string; password?: string; username?: string } = {};
+    
+    const emailResult = emailSchema.safeParse(email);
+    if (!emailResult.success) {
+      newErrors.email = emailResult.error.errors[0].message;
+    }
+    
+    const passwordResult = passwordSchema.safeParse(password);
+    if (!passwordResult.success) {
+      newErrors.password = passwordResult.error.errors[0].message;
+    }
+    
+    if (!isLogin) {
+      const usernameResult = usernameSchema.safeParse(username);
+      if (!usernameResult.success) {
+        newErrors.username = usernameResult.error.errors[0].message;
+      }
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    
+    if (!validateForm()) return;
+    
     setIsLoading(true);
 
     try {
       if (isLogin) {
-        const { error } = await signIn(email, password);
+        const { error } = await signIn(email.trim(), password);
         if (error) throw error;
         toast({ title: 'Welcome back!', description: 'Successfully logged in.' });
       } else {
-        if (!username.trim()) {
-          throw new Error('Username is required');
-        }
-        const { error } = await signUp(email, password, username);
+        const { error } = await signUp(email.trim(), password, username.trim());
         if (error) throw error;
         toast({ title: 'Account created!', description: 'You can now log in.' });
       }
       onSuccess?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
       toast({
         title: 'Error',
-        description: error.message || 'Authentication failed',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -130,11 +162,18 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                   id="username"
                   type="text"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    setErrors(prev => ({ ...prev, username: undefined }));
+                  }}
                   placeholder="ghost_hacker"
-                  className="bg-input border-border focus:border-primary focus:ring-primary font-mono"
+                  className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.username ? 'border-destructive' : ''}`}
                   required={!isLogin}
+                  maxLength={32}
                 />
+                {errors.username && (
+                  <p className="text-sm text-destructive">{errors.username}</p>
+                )}
               </div>
             )}
 
@@ -147,11 +186,18 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setErrors(prev => ({ ...prev, email: undefined }));
+                }}
                 placeholder="operator@zerodelta.ctf"
-                className="bg-input border-border focus:border-primary focus:ring-primary font-mono"
+                className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.email ? 'border-destructive' : ''}`}
                 required
+                maxLength={255}
               />
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email}</p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -164,10 +210,14 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setErrors(prev => ({ ...prev, password: undefined }));
+                  }}
                   placeholder="••••••••"
-                  className="bg-input border-border focus:border-primary focus:ring-primary font-mono pr-10"
+                  className={`bg-input border-border focus:border-primary focus:ring-primary font-mono pr-10 ${errors.password ? 'border-destructive' : ''}`}
                   required
+                  maxLength={128}
                 />
                 <button
                   type="button"
@@ -177,6 +227,9 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {errors.password && (
+                <p className="text-sm text-destructive">{errors.password}</p>
+              )}
             </div>
 
             <Button

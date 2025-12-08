@@ -118,15 +118,21 @@ export function AdminSettings() {
             onChange={(e) => setAnnouncement(e.target.value)}
             placeholder="📢 Important announcement..."
             rows={3}
+            maxLength={500}
           />
-          <Button
-            onClick={handlePostAnnouncement}
-            disabled={!announcement.trim()}
-            className="w-full"
-          >
-            <Send className="w-4 h-4 mr-2" />
-            Post Announcement
-          </Button>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">
+              {announcement.length}/500 characters
+            </span>
+            <Button
+              onClick={handlePostAnnouncement}
+              disabled={!announcement.trim() || announcement.length > 500}
+              className="w-auto"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Post Announcement
+            </Button>
+          </div>
         </div>
       </div>
     </div>

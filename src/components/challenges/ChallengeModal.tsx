@@ -9,6 +9,10 @@ import { useRateLimit } from '@/hooks/useRateLimit';
 import DOMPurify from 'dompurify';
 import ReactMarkdown from 'react-markdown';
 
+// Flag validation - max 256 chars, basic sanitization
+const MAX_FLAG_LENGTH = 256;
+const FLAG_PATTERN = /^[a-zA-Z0-9_{}\-!@#$%^&*()+=\[\]:;"'<>,.?/\\|`~\s]+$/;
+
 interface ChallengeModalProps {
   challenge: Challenge;
   onClose: () => void;
@@ -16,19 +20,39 @@ interface ChallengeModalProps {
 
 export function ChallengeModal({ challenge, onClose }: ChallengeModalProps) {
   const [flagInput, setFlagInput] = useState('');
+  const [flagError, setFlagError] = useState<string | null>(null);
   const { submitFlag, isSubmitting, isChallengeSolved } = useChallenges();
-  const { canSubmit, countdown, recordSubmission } = useRateLimit();
+  const { canSubmit, countdown, recordSubmission, isLocked } = useRateLimit();
   const { toast } = useToast();
   const isSolved = isChallengeSolved(challenge.id);
 
   const connectionInfo = challenge.connection_info as Record<string, unknown> | null;
 
+  const validateFlag = (flag: string): boolean => {
+    if (!flag.trim()) {
+      setFlagError('Flag cannot be empty');
+      return false;
+    }
+    if (flag.length > MAX_FLAG_LENGTH) {
+      setFlagError(`Flag must be less than ${MAX_FLAG_LENGTH} characters`);
+      return false;
+    }
+    if (!FLAG_PATTERN.test(flag)) {
+      setFlagError('Flag contains invalid characters');
+      return false;
+    }
+    setFlagError(null);
+    return true;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!flagInput.trim() || !canSubmit() || isSolved) return;
+    const trimmedFlag = flagInput.trim();
+    
+    if (!validateFlag(trimmedFlag) || !canSubmit() || isSolved) return;
 
     recordSubmission(false);
-    submitFlag({ challengeId: challenge.id, flagInput: flagInput.trim() });
+    submitFlag({ challengeId: challenge.id, flagInput: trimmedFlag });
     setFlagInput('');
   };
 
@@ -152,14 +176,18 @@ export function ChallengeModal({ challenge, onClose }: ChallengeModalProps) {
                 <div className="flex gap-2">
                   <Input
                     value={flagInput}
-                    onChange={(e) => setFlagInput(e.target.value)}
+                    onChange={(e) => {
+                      setFlagInput(e.target.value);
+                      setFlagError(null);
+                    }}
                     placeholder="DELTA{...}"
-                    className="font-mono bg-input border-border"
-                    disabled={!canSubmit || isSubmitting}
+                    className={`font-mono bg-input border-border ${flagError ? 'border-destructive' : ''}`}
+                    disabled={!canSubmit() || isSubmitting || isLocked}
+                    maxLength={MAX_FLAG_LENGTH}
                   />
                   <Button
                     type="submit"
-                    disabled={!canSubmit || isSubmitting || !flagInput.trim()}
+                    disabled={!canSubmit() || isSubmitting || !flagInput.trim() || isLocked}
                     className="bg-primary text-primary-foreground"
                   >
                     {isSubmitting ? (
@@ -169,9 +197,12 @@ export function ChallengeModal({ challenge, onClose }: ChallengeModalProps) {
                     )}
                   </Button>
                 </div>
+                {flagError && (
+                  <p className="text-sm text-destructive font-mono">{flagError}</p>
+                )}
                 {!canSubmit() && countdown > 0 && (
                   <p className="text-sm text-destructive font-mono">
-                    Rate limited. Try again in {countdown}s
+                    {isLocked ? `Locked for ${countdown}s` : `Wait ${countdown}s`}
                   </p>
                 )}
               </form>
