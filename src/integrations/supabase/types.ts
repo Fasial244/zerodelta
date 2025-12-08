@@ -54,6 +54,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "activity_log_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "activity_log_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
@@ -100,6 +107,13 @@ export type Database = {
             columns: ["challenge_id"]
             isOneToOne: false
             referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_instances_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges_public"
             referencedColumns: ["id"]
           },
         ]
@@ -247,6 +261,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "solves_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "solves_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
@@ -293,6 +314,13 @@ export type Database = {
             columns: ["challenge_id"]
             isOneToOne: false
             referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submission_attempts_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges_public"
             referencedColumns: ["id"]
           },
           {
@@ -372,7 +400,65 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      challenges_public: {
+        Row: {
+          category: Database["public"]["Enums"]["challenge_category"] | null
+          connection_info: Json | null
+          created_at: string | null
+          dependencies: string[] | null
+          description: string | null
+          first_blood_at: string | null
+          first_blood_user_id: string | null
+          flag_type: Database["public"]["Enums"]["flag_type"] | null
+          id: string | null
+          is_active: boolean | null
+          points: number | null
+          solve_count: number | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["challenge_category"] | null
+          connection_info?: Json | null
+          created_at?: string | null
+          dependencies?: string[] | null
+          description?: string | null
+          first_blood_at?: string | null
+          first_blood_user_id?: string | null
+          flag_type?: Database["public"]["Enums"]["flag_type"] | null
+          id?: string | null
+          is_active?: boolean | null
+          points?: number | null
+          solve_count?: number | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["challenge_category"] | null
+          connection_info?: Json | null
+          created_at?: string | null
+          dependencies?: string[] | null
+          description?: string | null
+          first_blood_at?: string | null
+          first_blood_user_id?: string | null
+          flag_type?: Database["public"]["Enums"]["flag_type"] | null
+          id?: string | null
+          is_active?: boolean | null
+          points?: number | null
+          solve_count?: number | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenges_first_blood_user_id_fkey"
+            columns: ["first_blood_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       has_role: {
