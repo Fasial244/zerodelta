@@ -1,14 +1,25 @@
 import { useState } from 'react';
-import { Ban, Unlock, Search, Shield, ShieldOff } from 'lucide-react';
+import { Ban, Unlock, Search, Shield, ShieldOff, RotateCcw, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAdmin } from '@/hooks/useAdmin';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { 
+  AlertDialog, 
+  AlertDialogAction, 
+  AlertDialogCancel, 
+  AlertDialogContent, 
+  AlertDialogDescription, 
+  AlertDialogFooter, 
+  AlertDialogHeader, 
+  AlertDialogTitle, 
+  AlertDialogTrigger 
+} from '@/components/ui/alert-dialog';
 import DOMPurify from 'dompurify';
 
 export function AdminUsers() {
-  const { users, banUser, unlockUser } = useAdmin();
+  const { users, banUser, unlockUser, promoteToAdmin, resetUserScore } = useAdmin();
   const [search, setSearch] = useState('');
 
   const filteredUsers = users.filter((user: any) =>
@@ -74,6 +85,59 @@ export function AdminUsers() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {/* Promote to Admin */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="text-warning hover:text-warning">
+                      <Crown className="w-4 h-4 mr-1" />
+                      Promote
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Promote to Admin?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will give {DOMPurify.sanitize(user.username || 'this user')} full admin 
+                        access to the platform. This action cannot be undone from the UI.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => promoteToAdmin(user.id)}>
+                        Promote to Admin
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+
+                {/* Reset Score */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                      <RotateCcw className="w-4 h-4 mr-1" />
+                      Reset
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Reset User Score?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will delete all solves for {DOMPurify.sanitize(user.username || 'this user')} 
+                        and reset their score to 0. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction 
+                        onClick={() => resetUserScore(user.id)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Reset Score
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+
                 {user.is_locked && (
                   <Button
                     variant="ghost"

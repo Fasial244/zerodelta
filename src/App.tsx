@@ -9,6 +9,7 @@ import Challenges from "./pages/Challenges";
 import Leaderboard from "./pages/Leaderboard";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
+import { MaintenanceWrapper } from "./components/MaintenanceWrapper";
 
 const queryClient = new QueryClient();
 
@@ -18,14 +19,16 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/challenges" element={<Challenges />} />
-          <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <MaintenanceWrapper>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/challenges" element={<Challenges />} />
+            <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </MaintenanceWrapper>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

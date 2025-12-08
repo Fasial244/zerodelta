@@ -137,10 +137,49 @@ export function useAdmin() {
   });
 
   const updateChallengeMutation = useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; is_active?: boolean }) => {
+    mutationFn: async ({ id, flag_value, flag_type, ...updates }: { 
+      id: string; 
+      is_active?: boolean;
+      title?: string;
+      description?: string;
+      points?: number;
+      category?: string;
+      dependencies?: string[];
+      connection_info?: Record<string, unknown>;
+      flag_type?: string;
+      flag_value?: string;
+    }) => {
+      let finalUpdates: Record<string, unknown> = { ...updates };
+
+      // If new flag value provided, hash it
+      if (flag_value && flag_type) {
+        const { data: saltSetting } = await supabase
+          .from('system_settings')
+          .select('value')
+          .eq('key', 'flag_salt')
+          .single();
+
+        const salt = saltSetting?.value || 'zd_s3cr3t_s4lt_2024';
+
+        if (flag_type === 'static') {
+          finalUpdates.flag_hash = await hashFlag(flag_value, salt);
+          finalUpdates.flag_pattern = null;
+          finalUpdates.flag_type = 'static';
+        } else {
+          finalUpdates.flag_pattern = flag_value;
+          finalUpdates.flag_hash = null;
+          finalUpdates.flag_type = 'regex';
+        }
+      }
+
+      // Convert connection_info if present
+      if (updates.connection_info) {
+        finalUpdates.connection_info = updates.connection_info as Json;
+      }
+
       const { error } = await supabase
         .from('challenges')
-        .update(updates)
+        .update(finalUpdates)
         .eq('id', id);
 
       if (error) throw error;
@@ -224,6 +263,71 @@ export function useAdmin() {
     },
   });
 
+  const promoteToAdminMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from('user_roles')
+        .insert({ user_id: userId, role: 'admin' });
+
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('User is already an admin');
+        }
+        throw error;
+      }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', userId)
+        .single();
+
+      await supabase.from('activity_log').insert({
+        event_type: 'announcement',
+        user_id: userId,
+        message: `${profile?.username || 'User'} was promoted to admin`,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: 'User promoted to admin!' });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const resetUserScoreMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from('solves')
+        .delete()
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', userId)
+        .single();
+
+      await supabase.from('activity_log').insert({
+        event_type: 'announcement',
+        user_id: userId,
+        message: `${profile?.username || 'User'}'s score was reset`,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: 'User score reset!' });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    },
+  });
+
   const updateSettingMutation = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: string }) => {
       const { error } = await supabase
@@ -271,6 +375,8 @@ export function useAdmin() {
     deleteChallenge: deleteChallengeMutation.mutate,
     banUser: banUserMutation.mutate,
     unlockUser: unlockUserMutation.mutate,
+    promoteToAdmin: promoteToAdminMutation.mutate,
+    resetUserScore: resetUserScoreMutation.mutate,
     updateSetting: updateSettingMutation.mutate,
     postAnnouncement: postAnnouncementMutation.mutate,
   };

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface SystemSettings {
@@ -22,10 +22,70 @@ export function useSystemSettings() {
   const [gameState, setGameState] = useState<GameState>('before_start');
   const [countdown, setCountdown] = useState<string>('');
 
-  useEffect(() => {
-    fetchSettings();
+  const parseSettings = useCallback((data: Array<{ key: string; value: string }>) => {
+    const settingsMap: Record<string, string> = {};
+    data?.forEach(row => {
+      settingsMap[row.key] = row.value;
+    });
+
+    return {
+      game_paused: settingsMap.game_paused === 'true',
+      game_start_time: new Date(settingsMap.game_start_time || '2024-01-01T00:00:00Z'),
+      game_end_time: new Date(settingsMap.game_end_time || '2024-12-31T23:59:59Z'),
+      decay_rate: parseFloat(settingsMap.decay_rate || '0.5'),
+      decay_factor: parseFloat(settingsMap.decay_factor || '10'),
+      min_points: parseInt(settingsMap.min_points || '50'),
+      event_title: settingsMap.event_title || 'ZeroDelta',
+      flag_salt: settingsMap.flag_salt || '',
+      honeypot_hash: settingsMap.honeypot_hash || '',
+      instance_reset_interval: parseInt(settingsMap.instance_reset_interval || '15'),
+    };
   }, []);
 
+  const fetchSettings = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('*');
+
+      if (error) throw error;
+
+      setSettings(parseSettings(data || []));
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [parseSettings]);
+
+  // Initial fetch and realtime subscription
+  useEffect(() => {
+    fetchSettings();
+
+    // Subscribe to realtime changes on system_settings
+    const channel = supabase
+      .channel('system-settings-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'system_settings'
+        },
+        (payload) => {
+          console.log('System settings changed:', payload);
+          // Refetch all settings when any change occurs
+          fetchSettings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchSettings]);
+
+  // Update game state based on settings
   useEffect(() => {
     if (!settings) return;
 
@@ -56,38 +116,6 @@ export function useSystemSettings() {
     const interval = setInterval(updateGameState, 1000);
     return () => clearInterval(interval);
   }, [settings]);
-
-  async function fetchSettings() {
-    try {
-      const { data, error } = await supabase
-        .from('system_settings')
-        .select('*');
-
-      if (error) throw error;
-
-      const settingsMap: Record<string, string> = {};
-      data?.forEach(row => {
-        settingsMap[row.key] = row.value;
-      });
-
-      setSettings({
-        game_paused: settingsMap.game_paused === 'true',
-        game_start_time: new Date(settingsMap.game_start_time || '2024-01-01T00:00:00Z'),
-        game_end_time: new Date(settingsMap.game_end_time || '2024-12-31T23:59:59Z'),
-        decay_rate: parseFloat(settingsMap.decay_rate || '0.5'),
-        decay_factor: parseFloat(settingsMap.decay_factor || '10'),
-        min_points: parseInt(settingsMap.min_points || '50'),
-        event_title: settingsMap.event_title || 'ZeroDelta',
-        flag_salt: settingsMap.flag_salt || '',
-        honeypot_hash: settingsMap.honeypot_hash || '',
-        instance_reset_interval: parseInt(settingsMap.instance_reset_interval || '15'),
-      });
-    } catch (error) {
-      console.error('Error fetching settings:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
 
   function formatCountdown(ms: number): string {
     if (ms <= 0) return '00:00:00';
