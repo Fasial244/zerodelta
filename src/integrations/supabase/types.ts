@@ -190,6 +190,84 @@ export type Database = {
           },
         ]
       }
+      competition_registrations: {
+        Row: {
+          competition_id: string
+          created_at: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          competition_id: string
+          created_at?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          competition_id?: string
+          created_at?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competition_registrations_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "competitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "competition_registrations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      competitions: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_time: string
+          id: string
+          is_active: boolean
+          name: string
+          require_approval: boolean
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_time: string
+          id?: string
+          is_active?: boolean
+          name: string
+          require_approval?: boolean
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          require_approval?: boolean
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

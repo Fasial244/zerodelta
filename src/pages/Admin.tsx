@@ -4,10 +4,11 @@ import { AdminChallenges } from '@/components/admin/AdminChallenges';
 import { AdminUsers } from '@/components/admin/AdminUsers';
 import { AdminSettings } from '@/components/admin/AdminSettings';
 import { AdminActivity } from '@/components/admin/AdminActivity';
+import { AdminCompetitions } from '@/components/admin/AdminCompetitions';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Shield, Users, Settings, Activity, Target, Tv } from 'lucide-react';
+import { Shield, Users, Settings, Activity, Target, Tv, Trophy } from 'lucide-react';
 
 export default function Admin() {
   return (
@@ -33,10 +34,14 @@ export default function Admin() {
           </div>
 
           <Tabs defaultValue="challenges" className="space-y-6">
-            <TabsList className="grid w-full max-w-2xl grid-cols-4">
+            <TabsList className="grid w-full max-w-3xl grid-cols-5">
               <TabsTrigger value="challenges" className="font-mono">
                 <Target className="w-4 h-4 mr-2" />
                 Challenges
+              </TabsTrigger>
+              <TabsTrigger value="competitions" className="font-mono">
+                <Trophy className="w-4 h-4 mr-2" />
+                Events
               </TabsTrigger>
               <TabsTrigger value="users" className="font-mono">
                 <Users className="w-4 h-4 mr-2" />
@@ -55,6 +60,12 @@ export default function Admin() {
             <TabsContent value="challenges">
               <ErrorBoundary>
                 <AdminChallenges />
+              </ErrorBoundary>
+            </TabsContent>
+
+            <TabsContent value="competitions">
+              <ErrorBoundary>
+                <AdminCompetitions />
               </ErrorBoundary>
             </TabsContent>
 
