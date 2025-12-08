@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Save, Send } from 'lucide-react';
+import { Save, Send, Calendar as CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { useAdmin } from '@/hooks/useAdmin';
+import { cn } from '@/lib/utils';
 
 // Helper to safely convert any value to string
 function toStringValue(value: unknown): string {
@@ -15,6 +19,80 @@ function toStringValue(value: unknown): string {
   if (typeof value === 'number') return String(value);
   if (value instanceof Date) return value.toISOString();
   return String(value);
+}
+
+// DateTimePicker component for better UX
+function DateTimePicker({ 
+  value, 
+  onChange, 
+  label 
+}: { 
+  value: string; 
+  onChange: (val: string) => void; 
+  label: string;
+}) {
+  const date = value ? new Date(value) : undefined;
+  const [timeValue, setTimeValue] = useState(date ? format(date, 'HH:mm') : '00:00');
+
+  const handleDateSelect = (selectedDate: Date | undefined) => {
+    if (!selectedDate) return;
+    const [hours, minutes] = timeValue.split(':').map(Number);
+    selectedDate.setHours(hours, minutes, 0, 0);
+    onChange(selectedDate.toISOString());
+  };
+
+  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newTime = e.target.value;
+    setTimeValue(newTime);
+    if (date) {
+      const [hours, minutes] = newTime.split(':').map(Number);
+      const newDate = new Date(date);
+      newDate.setHours(hours, minutes, 0, 0);
+      onChange(newDate.toISOString());
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className={cn(
+                "flex-1 justify-start text-left font-normal",
+                !date && "text-muted-foreground"
+              )}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {date ? format(date, "PPP") : "Pick a date"}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={handleDateSelect}
+              initialFocus
+              className="pointer-events-auto"
+            />
+          </PopoverContent>
+        </Popover>
+        <Input
+          type="time"
+          value={timeValue}
+          onChange={handleTimeChange}
+          className="w-28"
+        />
+      </div>
+      {date && (
+        <p className="text-xs text-muted-foreground">
+          {format(date, "PPpp")}
+        </p>
+      )}
+    </div>
+  );
 }
 
 export function AdminSettings() {
@@ -58,13 +136,10 @@ export function AdminSettings() {
     );
   }
 
-  const settingFields = [
-    { key: 'event_title', label: 'Event Title', type: 'text' },
-    { key: 'game_start_time', label: 'Game Start Time (ISO)', type: 'datetime-local' },
-    { key: 'game_end_time', label: 'Game End Time (ISO)', type: 'datetime-local' },
-    { key: 'decay_rate', label: 'Point Decay Rate', type: 'number', step: '0.1' },
-    { key: 'decay_factor', label: 'Decay Factor', type: 'number' },
-    { key: 'min_points', label: 'Minimum Points', type: 'number' },
+  const numberFields = [
+    { key: 'decay_rate', label: 'Point Decay Rate', step: '0.1' },
+    { key: 'decay_factor', label: 'Decay Factor' },
+    { key: 'min_points', label: 'Minimum Points' },
   ];
 
   return (
@@ -89,49 +164,66 @@ export function AdminSettings() {
         />
       </div>
 
-      {/* Settings fields */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {settingFields.map((field) => {
-          const rawValue = localSettings[field.key] || '';
-          // For datetime-local, extract the first 16 characters if it's an ISO string
-          const displayValue = field.type === 'datetime-local' && rawValue
-            ? rawValue.slice(0, 16)
-            : rawValue;
-            
-          return (
-            <div key={field.key} className="space-y-2">
-              <Label htmlFor={field.key}>{field.label}</Label>
-              <div className="flex gap-2">
-                <Input
-                  id={field.key}
-                  type={field.type}
-                  step={field.step}
-                  value={displayValue}
-                  onChange={(e) => {
-                    let newValue = e.target.value;
-                    // Convert datetime-local back to ISO string
-                    if (field.type === 'datetime-local' && newValue) {
-                      try {
-                        newValue = new Date(newValue).toISOString();
-                      } catch {
-                        // Keep as-is if conversion fails
-                      }
-                    }
-                    setLocalSettings(prev => ({ ...prev, [field.key]: newValue }));
-                  }}
-                  className="flex-1"
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => handleSave(field.key)}
-                >
-                  <Save className="w-4 h-4" />
-                </Button>
-              </div>
+      {/* Event Title */}
+      <div className="space-y-2">
+        <Label htmlFor="event_title">Event Title</Label>
+        <div className="flex gap-2">
+          <Input
+            id="event_title"
+            value={localSettings.event_title || ''}
+            onChange={(e) => setLocalSettings(prev => ({ ...prev, event_title: e.target.value }))}
+            className="flex-1"
+          />
+          <Button variant="outline" size="icon" onClick={() => handleSave('event_title')}>
+            <Save className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Date/Time Pickers */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-2">
+          <DateTimePicker
+            label="Game Start Time"
+            value={localSettings.game_start_time || ''}
+            onChange={(val) => setLocalSettings(prev => ({ ...prev, game_start_time: val }))}
+          />
+          <Button variant="outline" size="sm" onClick={() => handleSave('game_start_time')}>
+            <Save className="w-4 h-4 mr-2" /> Save Start Time
+          </Button>
+        </div>
+        <div className="space-y-2">
+          <DateTimePicker
+            label="Game End Time"
+            value={localSettings.game_end_time || ''}
+            onChange={(val) => setLocalSettings(prev => ({ ...prev, game_end_time: val }))}
+          />
+          <Button variant="outline" size="sm" onClick={() => handleSave('game_end_time')}>
+            <Save className="w-4 h-4 mr-2" /> Save End Time
+          </Button>
+        </div>
+      </div>
+
+      {/* Number fields */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {numberFields.map((field) => (
+          <div key={field.key} className="space-y-2">
+            <Label htmlFor={field.key}>{field.label}</Label>
+            <div className="flex gap-2">
+              <Input
+                id={field.key}
+                type="number"
+                step={field.step}
+                value={localSettings[field.key] || ''}
+                onChange={(e) => setLocalSettings(prev => ({ ...prev, [field.key]: e.target.value }))}
+                className="flex-1"
+              />
+              <Button variant="outline" size="icon" onClick={() => handleSave(field.key)}>
+                <Save className="w-4 h-4" />
+              </Button>
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
 
       {/* Announcement section */}
