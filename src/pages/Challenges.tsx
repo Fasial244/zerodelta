@@ -111,6 +111,24 @@ export default function Challenges() {
                   LOADING CHALLENGES...
                 </div>
               </div>
+            ) : challenges.length === 0 ? (
+              <div className="border border-border rounded-lg bg-card/50 p-8 min-h-[60vh] flex flex-col items-center justify-center">
+                <Terminal className="w-16 h-16 text-muted-foreground mb-4" />
+                <h3 className="text-xl font-mono text-foreground mb-2">NO CHALLENGES AVAILABLE</h3>
+                <p className="text-muted-foreground text-center max-w-md">
+                  {isAdmin 
+                    ? "No active challenges found. Go to Admin → Challenges to create and activate challenges."
+                    : "No challenges are currently available. Please check back later."}
+                </p>
+                {isAdmin && (
+                  <Button asChild className="mt-4">
+                    <Link to="/admin">
+                      <Terminal className="w-4 h-4 mr-2" />
+                      GO TO ADMIN
+                    </Link>
+                  </Button>
+                )}
+              </div>
             ) : (
               <div className="relative min-h-[60vh]">
                 {/* Mobile: Card List View */}

@@ -120,6 +120,14 @@ export function ChallengeGraph({ onSelectChallenge }: { onSelectChallenge: (c: C
     setEdges(initialEdges);
   }, [initialNodes, initialEdges, setNodes, setEdges]);
 
+  if (challenges.length === 0) {
+    return (
+      <div className="w-full h-[65vh] rounded-lg border border-border bg-card/30 flex items-center justify-center">
+        <p className="text-muted-foreground font-mono">No challenges to display</p>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full h-[65vh] rounded-lg border border-border bg-card/30 overflow-hidden">
       <ReactFlow
