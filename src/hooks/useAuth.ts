@@ -87,31 +87,31 @@ export function useAuth() {
 
   async function fetchUserData(user: User, session: Session) {
     try {
-      // Fetch profile with explicit columns
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, username, avatar_url, team_id, is_banned, is_locked, created_at')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      // Check admin role
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', user.id)
-        .eq('role', 'admin')
-        .maybeSingle();
+      // Fetch profile and admin role in parallel for speed
+      const [profileResult, roleResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, username, avatar_url, team_id, is_banned, is_locked, created_at')
+          .eq('id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('role', 'admin')
+          .maybeSingle()
+      ]);
 
       setAuthState({
         user,
         session,
-        profile: profile as Profile | null,
-        isAdmin: roleData?.role === 'admin',
+        profile: profileResult.data as Profile | null,
+        isAdmin: roleResult.data?.role === 'admin',
         isLoading: false,
       });
     } catch (error) {
       console.error('Error fetching user data:', error);
-      setAuthState(prev => ({ ...prev, isLoading: false }));
+      setAuthState(prev => ({ ...prev, user, session, isLoading: false }));
     }
   }
 
@@ -121,6 +121,7 @@ export function useAuth() {
       password,
       options: {
         data: { username },
+        emailRedirectTo: `${window.location.origin}/challenges`,
       },
     });
     return { data, error };
