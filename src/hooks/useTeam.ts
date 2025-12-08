@@ -13,17 +13,24 @@ export function useTeam() {
     queryFn: async () => {
       if (!profile?.team_id) return null;
       
-      const { data, error } = await supabase
-        .from('teams')
-        .select(`
-          *,
-          profiles (id, username, avatar_url)
-        `)
+      // Use teams_public view which only shows join_code to team members
+      const { data: teamData, error: teamError } = await supabase
+        .from('teams_public')
+        .select('*')
         .eq('id', profile.team_id)
         .single();
 
-      if (error) throw error;
-      return data;
+      if (teamError) throw teamError;
+
+      // Get team members separately
+      const { data: members, error: membersError } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .eq('team_id', profile.team_id);
+
+      if (membersError) throw membersError;
+
+      return { ...teamData, profiles: members };
     },
     enabled: !!profile?.team_id,
   });

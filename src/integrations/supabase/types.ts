@@ -68,6 +68,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "activity_log_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "activity_log_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -222,6 +229,13 @@ export type Database = {
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       solves: {
@@ -272,6 +286,13 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solves_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams_public"
             referencedColumns: ["id"]
           },
           {
@@ -458,6 +479,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      teams_public: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          join_code: string | null
+          name: string | null
+          score: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          join_code?: never
+          name?: string | null
+          score?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          join_code?: never
+          name?: string | null
+          score?: number | null
+        }
+        Relationships: []
       }
     }
     Functions: {
