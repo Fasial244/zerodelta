@@ -480,25 +480,68 @@ export type Database = {
           },
         ]
       }
+      submission_attempts_public: {
+        Row: {
+          challenge_id: string | null
+          created_at: string | null
+          id: string | null
+          is_correct: boolean | null
+          user_id: string | null
+        }
+        Insert: {
+          challenge_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_correct?: boolean | null
+          user_id?: string | null
+        }
+        Update: {
+          challenge_id?: string | null
+          created_at?: string | null
+          id?: string | null
+          is_correct?: boolean | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submission_attempts_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submission_attempts_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submission_attempts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teams_public: {
         Row: {
           created_at: string | null
           id: string | null
-          join_code: string | null
           name: string | null
           score: number | null
         }
         Insert: {
           created_at?: string | null
           id?: string | null
-          join_code?: never
           name?: string | null
           score?: number | null
         }
         Update: {
           created_at?: string | null
           id?: string | null
-          join_code?: never
           name?: string | null
           score?: number | null
         }
