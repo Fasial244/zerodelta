@@ -15,8 +15,8 @@ import { Terminal, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Challenges() {
-  const { user, isAdmin } = useAuth();
-  const { challenges, isLoading, isChallengeUnlocked, isChallengeSolved } = useChallenges();
+  const { user, isAdmin, isLoading: authLoading } = useAuth();
+  const { challenges, isLoading: challengesLoading, isChallengeUnlocked, isChallengeSolved } = useChallenges();
   const { gameState, countdown } = useSystemSettings();
   const isMobile = useIsMobile();
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
@@ -24,6 +24,17 @@ export default function Challenges() {
   // Admins can always interact with challenges
   const canViewGraph = gameState === 'active' || isAdmin;
   const showCountdownOverlay = gameState === 'before_start' && !isAdmin;
+
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-pulse text-primary font-mono">AUTHENTICATING...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!user) {
     return (
@@ -84,7 +95,7 @@ export default function Challenges() {
               CHALLENGE MAP
             </h1>
 
-            {isLoading ? (
+            {challengesLoading ? (
               <div className="border border-border rounded-lg bg-card/50 p-8 min-h-[60vh] flex items-center justify-center">
                 <div className="animate-pulse text-muted-foreground font-mono">
                   LOADING CHALLENGES...
