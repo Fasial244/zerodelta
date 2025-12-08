@@ -5,6 +5,7 @@ import { ChallengeModal } from '@/components/challenges/ChallengeModal';
 import { MobileChallengeList } from '@/components/challenges/MobileChallengeList';
 import { CountdownOverlay } from '@/components/challenges/CountdownOverlay';
 import { TeamPanel } from '@/components/team/TeamPanel';
+import { UsernameSetupModal } from '@/components/auth/UsernameSetupModal';
 import { useAuth } from '@/hooks/useAuth';
 import { useChallenges, Challenge } from '@/hooks/useChallenges';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
@@ -15,11 +16,15 @@ import { Terminal, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Challenges() {
-  const { user, isAdmin, isLoading: authLoading } = useAuth();
+  const { user, profile, isAdmin, isLoading: authLoading } = useAuth();
   const { challenges, isLoading: challengesLoading, isChallengeUnlocked, isChallengeSolved } = useChallenges();
   const { gameState, countdown } = useSystemSettings();
   const isMobile = useIsMobile();
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+  const [usernameModalDismissed, setUsernameModalDismissed] = useState(false);
+
+  // Check if user needs to set a username (Google users get auto-generated names like "user_abc123")
+  const needsUsername = profile?.username?.startsWith('user_') && !usernameModalDismissed;
 
   // Admins can always interact with challenges
   const canViewGraph = gameState === 'active' || isAdmin;
@@ -86,6 +91,11 @@ export default function Challenges() {
 
   return (
     <Layout>
+      {/* Username Setup Modal for Google users */}
+      {needsUsername && (
+        <UsernameSetupModal onComplete={() => setUsernameModalDismissed(true)} />
+      )}
+
       <div className="container mx-auto px-4 pt-28 pb-8">
         <div className="grid lg:grid-cols-4 gap-6">
           {/* Main Graph Area */}

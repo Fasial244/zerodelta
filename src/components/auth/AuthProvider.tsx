@@ -55,6 +55,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAdmin(roleResult.data?.role === 'admin');
     } catch (error) {
       console.error("Profile fetch error:", error);
+      // Don't throw - allow app to continue with null profile
+    }
+  };
+
+  // Refetch profile data (useful after profile updates)
+  const refetchProfile = async () => {
+    if (user) {
+      await fetchUserData(user.id);
     }
   };
 
@@ -159,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from('profiles')
       .update(updates)
       .eq('id', user.id)
-      .select()
+      .select('id, username, avatar_url, team_id, is_banned, is_locked, created_at')
       .single();
     
     if (result.data) {
