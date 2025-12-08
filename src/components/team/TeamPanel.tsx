@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Plus, LogIn, LogOut, Copy, Lock, Shield } from 'lucide-react';
+import { Users, LogIn, LogOut, Copy, Lock, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,10 +12,9 @@ import DOMPurify from 'dompurify';
 
 export function TeamPanel() {
   const { user, profile } = useAuth();
-  const { team, isLoading, isLocked, createTeam, joinTeam, leaveTeam, isCreating, isJoining, isLeaving } = useTeam();
+  const { team, isLoading, isLocked, joinTeam, leaveTeam, isJoining, isLeaving } = useTeam();
   const { toast } = useToast();
-  const [mode, setMode] = useState<'view' | 'create' | 'join'>('view');
-  const [teamName, setTeamName] = useState('');
+  const [mode, setMode] = useState<'view' | 'join'>('view');
   const [joinCode, setJoinCode] = useState('');
 
   if (!user) {
@@ -41,15 +40,6 @@ export function TeamPanel() {
     if (team?.join_code) {
       navigator.clipboard.writeText(team.join_code);
       toast({ title: 'Join code copied!' });
-    }
-  };
-
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (teamName.trim()) {
-      createTeam(teamName.trim());
-      setTeamName('');
-      setMode('view');
     }
   };
 
@@ -158,46 +148,15 @@ export function TeamPanel() {
             <Users className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
             <h3 className="font-bold text-foreground mb-1">Solo Mode</h3>
             <p className="text-sm text-muted-foreground">
-              Create or join a team to compete together
+              Join a team to compete together
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Button variant="outline" onClick={() => setMode('create')}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create
-            </Button>
-            <Button variant="outline" onClick={() => setMode('join')}>
-              <LogIn className="w-4 h-4 mr-2" />
-              Join
-            </Button>
-          </div>
+          <Button variant="outline" className="w-full" onClick={() => setMode('join')}>
+            <LogIn className="w-4 h-4 mr-2" />
+            Join Team
+          </Button>
         </>
-      )}
-
-      {mode === 'create' && (
-        <form onSubmit={handleCreate} className="space-y-4">
-          <h3 className="font-bold text-foreground">Create Team</h3>
-          <div className="space-y-2">
-            <Label htmlFor="teamName">Team Name</Label>
-            <Input
-              id="teamName"
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              placeholder="Elite Hackers"
-              className="bg-input border-border"
-              maxLength={50}
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button type="button" variant="ghost" onClick={() => setMode('view')} className="flex-1">
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isCreating || !teamName.trim()} className="flex-1">
-              Create
-            </Button>
-          </div>
-        </form>
       )}
 
       {mode === 'join' && (
