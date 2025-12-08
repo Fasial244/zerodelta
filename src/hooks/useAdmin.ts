@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { useToast } from './use-toast';
 import { hashFlag } from '@/lib/hash';
+import type { Json } from '@/integrations/supabase/types';
 
 export function useAdmin() {
   const { user } = useAuth();
@@ -86,10 +87,9 @@ export function useAdmin() {
       category: string;
       flag_type: string;
       flag_value: string;
-      connection_info?: object;
+      connection_info?: Record<string, unknown>;
       dependencies?: string[];
     }) => {
-      // Get salt
       const { data: saltSetting } = await supabase
         .from('system_settings')
         .select('value')
@@ -109,7 +109,7 @@ export function useAdmin() {
 
       const { data, error } = await supabase
         .from('challenges')
-        .insert({
+        .insert([{
           title: challenge.title,
           description: challenge.description,
           points: challenge.points,
@@ -117,9 +117,9 @@ export function useAdmin() {
           flag_type: challenge.flag_type as "static" | "regex",
           flag_hash,
           flag_pattern,
-          connection_info: challenge.connection_info || {},
+          connection_info: (challenge.connection_info || {}) as Json,
           dependencies: challenge.dependencies || [],
-        })
+        }])
         .select()
         .single();
 
@@ -139,30 +139,6 @@ export function useAdmin() {
   const updateChallengeMutation = useMutation({
     mutationFn: async ({ id, ...updates }: { id: string; is_active?: boolean }) => {
       const { error } = await supabase
-        .from('challenges')
-        .update(updates)
-        .eq('id', id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: 'Challenge updated!' });
-      queryClient.invalidateQueries({ queryKey: ['admin-challenges'] });
-      queryClient.invalidateQueries({ queryKey: ['challenges'] });
-    },
-    onError: (error: Error) => {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    },
-  });
-
-  const deleteChallengeMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('challenges')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
         .from('challenges')
         .update(updates)
         .eq('id', id);
