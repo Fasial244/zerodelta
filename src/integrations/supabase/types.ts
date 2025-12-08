@@ -526,6 +526,27 @@ export type Database = {
           },
         ]
       }
+      system_settings_public: {
+        Row: {
+          description: string | null
+          key: string | null
+          updated_at: string | null
+          value: string | null
+        }
+        Insert: {
+          description?: string | null
+          key?: string | null
+          updated_at?: string | null
+          value?: string | null
+        }
+        Update: {
+          description?: string | null
+          key?: string | null
+          updated_at?: string | null
+          value?: string | null
+        }
+        Relationships: []
+      }
       teams_public: {
         Row: {
           created_at: string | null
@@ -549,6 +570,7 @@ export type Database = {
       }
     }
     Functions: {
+      get_my_team_join_code: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

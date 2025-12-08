@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback, ReactNode } from 'react';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
 
-type SoundType = 'bgm' | 'success' | 'fail' | 'firstblood' | 'rankup' | 'win' | 'unlock';
+type SoundType = 'bgm' | 'success' | 'fail' | 'firstblood' | 'rankup' | 'rankup_top' | 'win' | 'unlock' | 'game_over';
 
 interface SoundContextType {
   play: (type: SoundType) => void;
@@ -17,8 +17,10 @@ const SOUND_PATHS: Record<SoundType, string> = {
   fail: '/sounds/hack-fail.mp3',
   firstblood: '/sounds/first-blood.mp3',
   rankup: '/sounds/rank-up.mp3',
+  rankup_top: '/sounds/rank-1.mp3',
   win: '/sounds/victory.mp3',
   unlock: '/sounds/unlock.mp3',
+  game_over: '/sounds/game-over.mp3',
 };
 
 export function SoundProvider({ children }: { children: ReactNode }) {
@@ -29,6 +31,7 @@ export function SoundProvider({ children }: { children: ReactNode }) {
   const { gameState } = useSystemSettings();
   const soundsRef = useRef<Map<SoundType, HTMLAudioElement>>(new Map());
   const bgmRef = useRef<HTMLAudioElement | null>(null);
+  const prevGameState = useRef<string | null>(null);
 
   // Initialize audio objects lazily
   const getSound = useCallback((type: SoundType): HTMLAudioElement | null => {
@@ -61,6 +64,18 @@ export function SoundProvider({ children }: { children: ReactNode }) {
     } else {
       bgm.pause();
     }
+  }, [gameState, isMuted, getSound]);
+
+  // Play game over sound when game ends
+  useEffect(() => {
+    if (prevGameState.current === 'active' && gameState === 'ended' && !isMuted) {
+      const gameOverSound = getSound('game_over');
+      if (gameOverSound) {
+        gameOverSound.currentTime = 0;
+        gameOverSound.play().catch(e => console.log('Game over sound error:', e));
+      }
+    }
+    prevGameState.current = gameState;
   }, [gameState, isMuted, getSound]);
 
   // Persist mute preference

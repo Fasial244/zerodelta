@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useSound } from '@/components/effects/SoundManager';
+import { useAuth } from '@/hooks/useAuth';
 
 interface LeaderboardEntry {
   id: string;
@@ -20,6 +22,10 @@ interface TeamLeaderboardEntry {
 }
 
 export function useLeaderboard() {
+  const { play } = useSound();
+  const { user } = useAuth();
+  const prevTopPlayer = useRef<string | null>(null);
+
   const individualQuery = useQuery({
     queryKey: ['leaderboard', 'individual'],
     queryFn: async () => {
@@ -66,8 +72,27 @@ export function useLeaderboard() {
         if (solve.is_first_blood) entry.first_bloods += 1;
       });
 
-      return Array.from(userMap.values())
+      const sortedData = Array.from(userMap.values())
         .sort((a, b) => b.total_points - a.total_points);
+
+      // Check for rank change and play sound
+      if (sortedData.length > 0) {
+        const newTopPlayer = sortedData[0].id;
+        
+        // If the top player changed (and it's not the first load)
+        if (prevTopPlayer.current && prevTopPlayer.current !== newTopPlayer) {
+          if (newTopPlayer === user?.id) {
+            // Current user just took 1st place
+            play('rankup_top');
+          } else {
+            // Someone else took 1st place
+            play('rankup');
+          }
+        }
+        prevTopPlayer.current = newTopPlayer;
+      }
+
+      return sortedData;
     },
   });
 

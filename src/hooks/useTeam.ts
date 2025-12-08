@@ -13,14 +13,17 @@ export function useTeam() {
     queryFn: async () => {
       if (!profile?.team_id) return null;
       
-      // Fetch team from raw table (only team members can access their team's join_code)
+      // Fetch team info from public view (excludes join_code)
       const { data: teamData, error: teamError } = await supabase
-        .from('teams')
-        .select('id, name, score, join_code, created_at')
+        .from('teams_public')
+        .select('id, name, score, created_at')
         .eq('id', profile.team_id)
         .single();
 
       if (teamError) throw teamError;
+
+      // Fetch join_code securely via RPC (only returns for own team)
+      const { data: joinCode } = await supabase.rpc('get_my_team_join_code');
 
       // Get team members separately with explicit columns
       const { data: members, error: membersError } = await supabase
@@ -30,7 +33,11 @@ export function useTeam() {
 
       if (membersError) throw membersError;
 
-      return { ...teamData, profiles: members || [] };
+      return { 
+        ...teamData, 
+        join_code: joinCode || null,
+        profiles: members || [] 
+      };
     },
     enabled: !!profile?.team_id,
   });
@@ -40,16 +47,16 @@ export function useTeam() {
       if (!user) throw new Error('Not authenticated');
       if (profile?.is_locked) throw new Error('You cannot change teams after your first solve');
 
-      // Create team - only select non-sensitive columns except join_code which we need to show the creator
+      // Create team
       const { data: team, error: teamError } = await supabase
         .from('teams')
         .insert({ name: teamName })
-        .select('id, name, score, join_code, created_at')
+        .select('id, name, score, created_at')
         .single();
 
       if (teamError) throw teamError;
 
-      // Update user profile
+      // Update user profile first so RPC can find the team
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ team_id: team.id })
@@ -57,7 +64,10 @@ export function useTeam() {
 
       if (profileError) throw profileError;
 
-      return team;
+      // Fetch the join_code for the newly created team via secure RPC
+      const { data: joinCode } = await supabase.rpc('get_my_team_join_code');
+
+      return { ...team, join_code: joinCode };
     },
     onSuccess: (team) => {
       toast({
