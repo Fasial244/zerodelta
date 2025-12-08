@@ -142,7 +142,12 @@ export default function Challenges() {
                 ) : (
                   /* Desktop: Graph View */
                   <div className={showCountdownOverlay ? 'blur-sm pointer-events-none' : ''}>
-                    <ChallengeGraph onSelectChallenge={setSelectedChallenge} />
+                    <ChallengeGraph 
+                      challenges={challenges}
+                      onSelectChallenge={setSelectedChallenge}
+                      isChallengeUnlocked={isChallengeUnlocked}
+                      isChallengeSolved={isChallengeSolved}
+                    />
                   </div>
                 )}
 

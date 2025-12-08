@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useEffect } from 'react';
+import { useMemo, useEffect } from 'react';
 import {
   ReactFlow,
   Node,
@@ -10,7 +10,7 @@ import {
   MarkerType,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { useChallenges, Challenge } from '@/hooks/useChallenges';
+import { Challenge } from '@/hooks/useChallenges';
 import { ChallengeNode } from './ChallengeNode';
 
 const nodeTypes = { challenge: ChallengeNode };
@@ -23,8 +23,19 @@ const categoryColors: Record<string, string> = {
   Other: '#A855F7',
 };
 
-export function ChallengeGraph({ onSelectChallenge }: { onSelectChallenge: (c: Challenge) => void }) {
-  const { challenges, isChallengeUnlocked, isChallengeSolved } = useChallenges();
+interface ChallengeGraphProps {
+  challenges: Challenge[];
+  onSelectChallenge: (c: Challenge) => void;
+  isChallengeUnlocked: (c: Challenge) => boolean;
+  isChallengeSolved: (id: string) => boolean;
+}
+
+export function ChallengeGraph({ 
+  challenges, 
+  onSelectChallenge, 
+  isChallengeUnlocked, 
+  isChallengeSolved 
+}: ChallengeGraphProps) {
 
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
     const nodes: Node[] = [];
