@@ -30,11 +30,32 @@ export function useAuth() {
   });
 
   useEffect(() => {
+    let isMounted = true;
+    
+    // Timeout to prevent infinite loading state
+    const loadingTimeout = setTimeout(() => {
+      if (isMounted) {
+        console.warn('useAuth: Loading timed out, forcing completion');
+        setAuthState(prev => {
+          if (prev.isLoading) {
+            return { ...prev, isLoading: false };
+          }
+          return prev;
+        });
+      }
+    }, 8000); // 8 second timeout
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) return;
       if (session?.user) {
         fetchUserData(session.user, session);
       } else {
+        setAuthState(prev => ({ ...prev, isLoading: false }));
+      }
+    }).catch((error) => {
+      console.error('Error getting session:', error);
+      if (isMounted) {
         setAuthState(prev => ({ ...prev, isLoading: false }));
       }
     });
@@ -42,6 +63,7 @@ export function useAuth() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!isMounted) return;
         if (session?.user) {
           await fetchUserData(session.user, session);
         } else {
@@ -56,7 +78,11 @@ export function useAuth() {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      clearTimeout(loadingTimeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function fetchUserData(user: User, session: Session) {
