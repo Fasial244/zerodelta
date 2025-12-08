@@ -513,6 +513,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      join_team_via_code: { Args: { code_input: string }; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "user"

@@ -13,16 +13,16 @@ export function useTeam() {
     queryFn: async () => {
       if (!profile?.team_id) return null;
       
-      // Use teams_public view which only shows join_code to team members
+      // Use teams_public view with explicit columns - join_code is only visible to team members
       const { data: teamData, error: teamError } = await supabase
         .from('teams_public')
-        .select('*')
+        .select('id, name, score, join_code, created_at')
         .eq('id', profile.team_id)
         .single();
 
       if (teamError) throw teamError;
 
-      // Get team members separately
+      // Get team members separately with explicit columns
       const { data: members, error: membersError } = await supabase
         .from('profiles')
         .select('id, username, avatar_url')
@@ -40,11 +40,11 @@ export function useTeam() {
       if (!user) throw new Error('Not authenticated');
       if (profile?.is_locked) throw new Error('You cannot change teams after your first solve');
 
-      // Create team
+      // Create team - only select non-sensitive columns except join_code which we need to show the creator
       const { data: team, error: teamError } = await supabase
         .from('teams')
         .insert({ name: teamName })
-        .select()
+        .select('id, name, score, join_code, created_at')
         .single();
 
       if (teamError) throw teamError;
@@ -79,34 +79,21 @@ export function useTeam() {
   const joinTeamMutation = useMutation({
     mutationFn: async (joinCode: string) => {
       if (!user) throw new Error('Not authenticated');
-      if (profile?.is_locked) throw new Error('You cannot change teams after your first solve');
 
-      // Find team by join code
-      const { data: team, error: findError } = await supabase
-        .from('teams')
-        .select('id, name')
-        .eq('join_code', joinCode.toUpperCase())
-        .single();
-
-      if (findError || !team) throw new Error('Invalid join code');
-
-      // Update user profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ team_id: team.id })
-        .eq('id', user.id);
-
-      if (profileError) throw profileError;
-
-      // Log activity
-      await supabase.from('activity_log').insert({
-        event_type: 'team_join',
-        user_id: user.id,
-        team_id: team.id,
-        message: `${profile?.username || 'A user'} joined ${team.name}`,
+      // Use secure RPC to join team - this never exposes join_code to client
+      const { data, error } = await supabase.rpc('join_team_via_code', {
+        code_input: joinCode,
       });
 
-      return team;
+      if (error) throw error;
+      
+      const result = data as { success: boolean; error?: string; team_id?: string; team_name?: string };
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to join team');
+      }
+
+      return { id: result.team_id, name: result.team_name };
     },
     onSuccess: (team) => {
       toast({
