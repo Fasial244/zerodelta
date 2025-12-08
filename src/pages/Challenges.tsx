@@ -2,20 +2,28 @@ import { useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { ChallengeGraph } from '@/components/challenges/ChallengeGraph';
 import { ChallengeModal } from '@/components/challenges/ChallengeModal';
+import { MobileChallengeList } from '@/components/challenges/MobileChallengeList';
+import { CountdownOverlay } from '@/components/challenges/CountdownOverlay';
 import { TeamPanel } from '@/components/team/TeamPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { useChallenges, Challenge } from '@/hooks/useChallenges';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Terminal, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function Challenges() {
-  const { user } = useAuth();
-  const { isLoading } = useChallenges();
-  const { gameState } = useSystemSettings();
+  const { user, isAdmin } = useAuth();
+  const { challenges, isLoading, isChallengeUnlocked, isChallengeSolved } = useChallenges();
+  const { gameState, countdown } = useSystemSettings();
+  const isMobile = useIsMobile();
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+
+  // Admins can always interact with challenges
+  const canViewGraph = gameState === 'active' || isAdmin;
+  const showCountdownOverlay = gameState === 'before_start' && !isAdmin;
 
   if (!user) {
     return (
@@ -83,7 +91,25 @@ export default function Challenges() {
                 </div>
               </div>
             ) : (
-              <ChallengeGraph onSelectChallenge={setSelectedChallenge} />
+              <div className="relative min-h-[60vh]">
+                {/* Mobile: Card List View */}
+                {isMobile ? (
+                  <MobileChallengeList
+                    challenges={challenges}
+                    onSelectChallenge={setSelectedChallenge}
+                    isChallengeUnlocked={isChallengeUnlocked}
+                    isChallengeSolved={isChallengeSolved}
+                  />
+                ) : (
+                  /* Desktop: Graph View */
+                  <div className={showCountdownOverlay ? 'blur-sm pointer-events-none' : ''}>
+                    <ChallengeGraph onSelectChallenge={setSelectedChallenge} />
+                  </div>
+                )}
+
+                {/* Countdown Overlay for Pre-Game */}
+                {showCountdownOverlay && <CountdownOverlay countdown={countdown} />}
+              </div>
             )}
 
             {gameState === 'before_start' && (
@@ -109,11 +135,12 @@ export default function Challenges() {
           </div>
         </div>
 
-        {/* Challenge Modal */}
-        {selectedChallenge && gameState === 'active' && (
+        {/* Challenge Modal - show for active game OR for admins OR for ended game (view only) */}
+        {selectedChallenge && (gameState === 'active' || isAdmin || gameState === 'ended') && (
           <ChallengeModal
             challenge={selectedChallenge}
             onClose={() => setSelectedChallenge(null)}
+            isGameEnded={gameState === 'ended' && !isAdmin}
           />
         )}
       </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { Droplets, Trophy, Megaphone, Users } from 'lucide-react';
+import { toast } from 'sonner';
 import DOMPurify from 'dompurify';
 
 interface ActivityEvent {
@@ -33,6 +34,33 @@ export function ActivityTicker() {
         (payload) => {
           const newEvent = payload.new as ActivityEvent;
           setEvents(prev => [newEvent, ...prev.slice(0, 19)]);
+
+          // Trigger global toast for important events
+          if (newEvent.event_type === 'announcement') {
+            toast.warning(DOMPurify.sanitize(newEvent.message), {
+              duration: 10000,
+              icon: '📢',
+              className: 'border-warning bg-background',
+              description: 'SYSTEM ANNOUNCEMENT',
+            });
+          }
+
+          if (newEvent.event_type === 'first_blood') {
+            toast.error(DOMPurify.sanitize(newEvent.message), {
+              duration: 8000,
+              icon: '🩸',
+              className: 'border-destructive bg-background',
+              description: 'FIRST BLOOD',
+            });
+          }
+
+          if (newEvent.event_type === 'solve') {
+            toast.success(DOMPurify.sanitize(newEvent.message), {
+              duration: 5000,
+              icon: '🏆',
+              className: 'border-accent bg-background',
+            });
+          }
         }
       )
       .subscribe();
@@ -66,7 +94,7 @@ export function ActivityTicker() {
 
   if (events.length === 0) {
     return (
-      <div className="h-8 bg-muted/50 border-b border-border flex items-center justify-center">
+      <div className="h-8 bg-muted/80 backdrop-blur-sm border-b border-border flex items-center justify-center">
         <span className="text-muted-foreground font-mono text-sm">
           Awaiting activity...
         </span>
@@ -78,7 +106,7 @@ export function ActivityTicker() {
   const Icon = getEventIcon(currentEvent?.event_type);
 
   return (
-    <div className="h-8 bg-muted/50 border-b border-border overflow-hidden">
+    <div className="h-8 bg-muted/80 backdrop-blur-sm border-b border-border overflow-hidden">
       <div className="container mx-auto px-4 h-full flex items-center">
         <AnimatePresence mode="wait">
           <motion.div
@@ -95,7 +123,7 @@ export function ActivityTicker() {
               {DOMPurify.sanitize(currentEvent?.message || '')}
             </span>
             {currentEvent?.points && (
-              <span className="text-neon-green">+{currentEvent.points} PTS</span>
+              <span className="text-accent font-bold">+{currentEvent.points} PTS</span>
             )}
           </motion.div>
         </AnimatePresence>
@@ -123,14 +151,14 @@ function getEventIcon(eventType: string) {
 function getEventColor(eventType: string): string {
   switch (eventType) {
     case 'first_blood':
-      return 'text-neon-red';
+      return 'text-destructive';
     case 'solve':
-      return 'text-neon-green';
+      return 'text-accent';
     case 'announcement':
-      return 'text-neon-yellow';
+      return 'text-warning';
     case 'team_join':
     case 'team_leave':
-      return 'text-neon-cyan';
+      return 'text-primary';
     default:
       return 'text-foreground';
   }

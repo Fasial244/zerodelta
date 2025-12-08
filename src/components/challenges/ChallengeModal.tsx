@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Terminal, ExternalLink, Copy, Download, Send, Loader2 } from 'lucide-react';
+import { X, Terminal, ExternalLink, Copy, Download, Send, Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -16,9 +16,10 @@ const FLAG_PATTERN = /^[a-zA-Z0-9_{}\-!@#$%^&*()+=\[\]:;"'<>,.?/\\|`~\s]+$/;
 interface ChallengeModalProps {
   challenge: Challenge;
   onClose: () => void;
+  isGameEnded?: boolean;
 }
 
-export function ChallengeModal({ challenge, onClose }: ChallengeModalProps) {
+export function ChallengeModal({ challenge, onClose, isGameEnded = false }: ChallengeModalProps) {
   const [flagInput, setFlagInput] = useState('');
   const [flagError, setFlagError] = useState<string | null>(null);
   const { submitFlag, isSubmitting, isChallengeSolved } = useChallenges();
@@ -47,6 +48,8 @@ export function ChallengeModal({ challenge, onClose }: ChallengeModalProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isGameEnded) return;
+    
     const trimmedFlag = flagInput.trim();
     
     if (!validateFlag(trimmedFlag) || !canSubmit() || isSolved) return;
@@ -60,6 +63,8 @@ export function ChallengeModal({ challenge, onClose }: ChallengeModalProps) {
     navigator.clipboard.writeText(text);
     toast({ title: 'Copied to clipboard!' });
   };
+
+  const isSubmitDisabled = isGameEnded || !canSubmit() || isSubmitting || !flagInput.trim() || isLocked;
 
   return (
     <AnimatePresence>
@@ -93,8 +98,16 @@ export function ChallengeModal({ challenge, onClose }: ChallengeModalProps) {
 
           {/* Content */}
           <div className="p-6 overflow-y-auto max-h-[calc(85vh-120px)]">
+            {/* Game Ended Banner */}
+            {isGameEnded && (
+              <div className="mb-4 p-3 rounded-lg bg-destructive/20 border border-destructive/50 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
+                <span className="font-mono text-destructive font-bold">CTF ENDED - SUBMISSIONS CLOSED</span>
+              </div>
+            )}
+
             {/* Category & Points */}
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-4 mb-4 flex-wrap">
               <span className="px-3 py-1 rounded bg-primary/20 text-primary font-mono text-sm">
                 {challenge.category}
               </span>
@@ -181,13 +194,13 @@ export function ChallengeModal({ challenge, onClose }: ChallengeModalProps) {
                       setFlagError(null);
                     }}
                     placeholder="DELTA{...}"
-                    className={`font-mono bg-input border-border ${flagError ? 'border-destructive' : ''}`}
-                    disabled={!canSubmit() || isSubmitting || isLocked}
+                    className={`font-mono bg-input border-border ${flagError ? 'border-destructive' : ''} ${isGameEnded ? 'opacity-50' : ''}`}
+                    disabled={isGameEnded || !canSubmit() || isSubmitting || isLocked}
                     maxLength={MAX_FLAG_LENGTH}
                   />
                   <Button
                     type="submit"
-                    disabled={!canSubmit() || isSubmitting || !flagInput.trim() || isLocked}
+                    disabled={isSubmitDisabled}
                     className="bg-primary text-primary-foreground"
                   >
                     {isSubmitting ? (
@@ -200,7 +213,7 @@ export function ChallengeModal({ challenge, onClose }: ChallengeModalProps) {
                 {flagError && (
                   <p className="text-sm text-destructive font-mono">{flagError}</p>
                 )}
-                {!canSubmit() && countdown > 0 && (
+                {!canSubmit() && countdown > 0 && !isGameEnded && (
                   <p className="text-sm text-destructive font-mono">
                     {isLocked ? `Locked for ${countdown}s` : `Wait ${countdown}s`}
                   </p>
