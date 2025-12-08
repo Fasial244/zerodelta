@@ -29,7 +29,7 @@ export default function Index() {
           </motion.div>
 
           <h1 className="text-5xl md:text-7xl font-bold mb-4 font-mono">
-            <span className="text-glow-cyan">{settings.event_title || 'ZERO'}</span>
+            <span className="text-glow-cyan">{settings?.event_title || 'ZERO'}</span>
             <span className="text-glow-magenta">DELTA</span>
           </h1>
 

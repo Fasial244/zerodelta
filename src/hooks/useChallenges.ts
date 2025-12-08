@@ -19,7 +19,7 @@ export type Challenge = {
   is_active: boolean;
   created_at: string;
 };
-export type Solve = Tables<'solves'>;
+
 
 export function useChallenges() {
   const { user } = useAuth();
