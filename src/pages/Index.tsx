@@ -6,6 +6,7 @@ import { useSystemSettings } from '@/hooks/useSystemSettings';
 import { useCompetitions } from '@/hooks/useCompetitions';
 import { Link } from 'react-router-dom';
 import { Shield, Target, Trophy, Users, Zap, Terminal, Calendar, AlertTriangle } from 'lucide-react';
+import { PublicEventCountdown } from '@/components/events/PublicEventCountdown';
 
 export default function Index() {
   const { user } = useAuth();
@@ -76,47 +77,65 @@ export default function Index() {
             Capture The Flag • Hack The Planet • Prove Your Skills
           </p>
 
-          {/* Game Status */}
-          <div className={`inline-block px-6 py-3 rounded-lg bg-card border ${status.bgColor} mb-8`}>
-            <p className={`text-sm font-mono mb-1 ${status.color}`}>
-              {status.icon} {status.label}
-            </p>
-            {(gameState === 'before_start' || gameState === 'active') && (
-              <p className="text-3xl font-mono text-foreground">
-                {countdown}
-              </p>
-            )}
-            {gameState === 'ended' && (
-              <Button asChild size="sm" variant="outline" className="font-mono mt-2">
-                <Link to="/leaderboard">
-                  <Trophy className="w-4 h-4 mr-2" />
-                  View Final Scoreboard
-                </Link>
-              </Button>
-            )}
-          </div>
-
-          {/* Event Alert for non-registered users */}
+          {/* Public Event Countdown for non-authenticated users */}
           {activeCompetition && !user && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="max-w-lg mx-auto mb-8"
+            >
+              <PublicEventCountdown
+                competitionName={activeCompetition.name}
+                startTime={activeCompetition.start_time}
+                endTime={activeCompetition.end_time}
+              />
+            </motion.div>
+          )}
+
+          {/* Game Status for authenticated users */}
+          {user && (
+            <div className={`inline-block px-6 py-3 rounded-lg bg-card border ${status.bgColor} mb-8`}>
+              <p className={`text-sm font-mono mb-1 ${status.color}`}>
+                {status.icon} {status.label}
+              </p>
+              {(gameState === 'before_start' || gameState === 'active') && (
+                <p className="text-3xl font-mono text-foreground">
+                  {countdown}
+                </p>
+              )}
+              {gameState === 'ended' && (
+                <Button asChild size="sm" variant="outline" className="font-mono mt-2">
+                  <Link to="/leaderboard">
+                    <Trophy className="w-4 h-4 mr-2" />
+                    View Final Scoreboard
+                  </Link>
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Event Alert for logged in but not registered users */}
+          {activeCompetition && user && !userRegistration && (
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mb-8 p-4 rounded-lg bg-warning/10 border border-warning/30"
+              className="mb-8 p-4 rounded-lg bg-primary/10 border border-primary/30"
             >
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <Calendar className="w-6 h-6 text-warning" />
+                  <AlertTriangle className="w-6 h-6 text-primary" />
                   <div className="text-left">
-                    <p className="font-mono font-bold text-warning">{activeCompetition.name}</p>
+                    <p className="font-mono font-bold text-primary">{activeCompetition.name}</p>
                     <p className="text-sm text-muted-foreground">
-                      Sign in to register for this event
+                      You are not registered for this event yet
                     </p>
                   </div>
                 </div>
                 <Button asChild className="font-mono">
-                  <Link to="/auth">
-                    <Terminal className="w-4 h-4 mr-2" />
-                    SIGN IN & REGISTER
+                  <Link to="/challenges">
+                    <Target className="w-4 h-4 mr-2" />
+                    REGISTER NOW
                   </Link>
                 </Button>
               </div>
