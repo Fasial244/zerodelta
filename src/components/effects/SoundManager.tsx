@@ -48,11 +48,28 @@ export function SoundProvider({ children }: { children: ReactNode }) {
   const bgmRef = useRef<HTMLAudioElement | null>(null);
   const prevGameState = useRef<string | null>(null);
 
-  // Initialize audio objects lazily
+  // Track which sounds failed to load to avoid repeated 404s
+  const failedSoundsRef = useRef<Set<SoundType>>(new Set());
+
+  // Initialize audio objects lazily with error handling
   const getSound = useCallback((type: SoundType): HTMLAudioElement | null => {
+    // Skip if we already know this sound failed to load
+    if (failedSoundsRef.current.has(type)) {
+      return null;
+    }
+
     if (!soundsRef.current.has(type)) {
       try {
-        const audio = new Audio(SOUND_PATHS[type]);
+        const audio = new Audio();
+        
+        // Handle load errors gracefully - mark as failed so we don't retry
+        audio.addEventListener('error', () => {
+          failedSoundsRef.current.add(type);
+          soundsRef.current.delete(type);
+        }, { once: true });
+
+        audio.src = SOUND_PATHS[type];
+        
         if (type === 'bgm') {
           audio.loop = true;
           audio.volume = bgmVolume;
@@ -62,7 +79,7 @@ export function SoundProvider({ children }: { children: ReactNode }) {
         }
         soundsRef.current.set(type, audio);
       } catch (e) {
-        console.log(`Sound ${type} not available:`, e);
+        failedSoundsRef.current.add(type);
         return null;
       }
     }
