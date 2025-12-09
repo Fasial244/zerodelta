@@ -52,7 +52,7 @@ export function useAdmin() {
   });
 
   const allUsersQuery = useQuery({
-    queryKey: ["admin-users", isAdminQuery.data],
+    queryKey: ["admin-users"],
     queryFn: async () => {
       console.log("Fetching users for admin panel...");
       // Admin user management - explicit columns including full_name and university_id
@@ -74,13 +74,13 @@ export function useAdmin() {
       console.log("Fetched users:", data?.length || 0);
       return data || [];
     },
-    enabled: isAdminQuery.data === true,
+    enabled: !!isAdminQuery.data,
     staleTime: 0,
     refetchOnMount: "always",
   });
 
   const activityLogQuery = useQuery({
-    queryKey: ["admin-activity", isAdminQuery.data],
+    queryKey: ["admin-activity"],
     queryFn: async () => {
       console.log("Fetching activity log for admin panel...");
       // Admin activity log - explicit columns
@@ -103,7 +103,7 @@ export function useAdmin() {
       console.log("Fetched activity log:", data?.length || 0);
       return data || [];
     },
-    enabled: isAdminQuery.data === true,
+    enabled: !!isAdminQuery.data,
     staleTime: 0,
     refetchOnMount: "always",
   });
