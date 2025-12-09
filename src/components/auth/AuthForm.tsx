@@ -33,11 +33,10 @@ const fullNameSchema = z
 const universityIdSchema = z
   .string()
   .trim()
-  .min(10, 'Must be at least 10 digits')
-  .max(15, 'Maximum 15 digits')
+  .length(10, 'Must be exactly 10 digits')
   .regex(
-    /^(2\d{9}|\d{10,15})$/,
-    'Must be a 10-digit ID starting with 2, or a phone number (10-15 digits)'
+    /^(22\d{8}|05\d{8})$/,
+    'Must be a 10-digit ID starting with 22, or a 10-digit phone number starting with 05'
   );
 
 interface AuthFormProps {
@@ -260,10 +259,10 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                     placeholder="2123456789 or phone number"
                     className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.universityId ? 'border-destructive' : ''}`}
                     required={!isLogin}
-                    maxLength={15}
+                    maxLength={10}
                   />
                   <p className="text-xs text-muted-foreground">
-                    10-digit ID starting with 2, or phone number (10-15 digits)
+                    10-digit ID starting with 22, or phone starting with 05
                   </p>
                   {errors.universityId && (
                     <p className="text-sm text-destructive">{errors.universityId}</p>

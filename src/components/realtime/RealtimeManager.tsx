@@ -124,6 +124,22 @@ export function RealtimeManager() {
       )
       .subscribe();
 
+    // Channel for competition registrations - refetch leaderboard when registrations change
+    const registrationsChannel = supabase
+      .channel('realtime-registrations')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'competition_registrations' },
+        (payload) => {
+          console.log('[Realtime] Registrations changed:', payload.eventType);
+          queryClient.refetchQueries({ queryKey: ['leaderboard'] });
+          queryClient.refetchQueries({ queryKey: ['competitions'] });
+          queryClient.refetchQueries({ queryKey: ['user-registration'] });
+          queryClient.refetchQueries({ queryKey: ['all-registrations'] });
+        }
+      )
+      .subscribe();
+
     // Cleanup subscriptions on unmount
     return () => {
       supabase.removeChannel(solvesChannel);
@@ -131,6 +147,7 @@ export function RealtimeManager() {
       supabase.removeChannel(settingsChannel);
       supabase.removeChannel(activityChannel);
       supabase.removeChannel(profilesChannel);
+      supabase.removeChannel(registrationsChannel);
     };
   }, [queryClient, toast]);
 

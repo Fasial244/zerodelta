@@ -1,8 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useRef } from 'react';
 import { useSound } from '@/components/effects/SoundManager';
 import { useAuth } from '@/hooks/useAuth';
+import { useCompetitions } from '@/hooks/useCompetitions';
 
 interface LeaderboardEntry {
   id: string;
@@ -17,24 +18,48 @@ interface LeaderboardEntry {
 export function useLeaderboard() {
   const { play } = useSound();
   const { user } = useAuth();
+  const { activeCompetition } = useCompetitions();
+  const queryClient = useQueryClient();
   const prevTopPlayer = useRef<string | null>(null);
   const prevTop3 = useRef<Set<string>>(new Set());
 
   const individualQuery = useQuery({
-    queryKey: ['leaderboard', 'individual'],
+    queryKey: ['leaderboard', 'individual', activeCompetition?.id],
     queryFn: async () => {
-      // First, get ALL profiles (users who signed up during competition)
+      // If there's no active competition, return empty array
+      if (!activeCompetition?.id) {
+        return [];
+      }
+
+      // Get users registered for the active competition (approved only)
+      const { data: registrations, error: regError } = await supabase
+        .from('competition_registrations')
+        .select('user_id')
+        .eq('competition_id', activeCompetition.id)
+        .eq('status', 'approved');
+
+      if (regError) throw regError;
+
+      const registeredUserIds = registrations?.map(r => r.user_id) || [];
+
+      if (registeredUserIds.length === 0) {
+        return [];
+      }
+
+      // Get profiles for registered users only
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('id, username, avatar_url, created_at')
+        .in('id', registeredUserIds)
         .order('created_at', { ascending: true });
 
       if (profilesError) throw profilesError;
 
-      // Then get all solves
+      // Get all solves for registered users
       const { data: solves, error: solvesError } = await supabase
         .from('solves')
-        .select('user_id, points_awarded, is_first_blood');
+        .select('user_id, points_awarded, is_first_blood')
+        .in('user_id', registeredUserIds);
 
       if (solvesError) throw solvesError;
 
@@ -99,33 +124,46 @@ export function useLeaderboard() {
 
       return sortedData;
     },
+    enabled: !!activeCompetition?.id,
+    refetchInterval: 3000, // Poll every 3 seconds
+    staleTime: 0,
   });
 
-  // Subscribe to realtime updates - refetch every 3 seconds as well for live scoreboard
+  // Subscribe to realtime updates for immediate refresh
   useEffect(() => {
     const channel = supabase
-      .channel('leaderboard-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'solves' }, () => {
+      .channel('leaderboard-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'solves' }, () => {
+        // Force immediate refetch when a new solve is inserted
+        queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+        individualQuery.refetch();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'solves' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+        individualQuery.refetch();
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'solves' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
         individualQuery.refetch();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
+        individualQuery.refetch();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'competition_registrations' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
         individualQuery.refetch();
       })
       .subscribe();
 
-    // Also poll every 3 seconds for live scoreboard updates
-    const interval = setInterval(() => {
-      individualQuery.refetch();
-    }, 3000);
-
     return () => {
       supabase.removeChannel(channel);
-      clearInterval(interval);
     };
-  }, [individualQuery]);
+  }, [individualQuery, queryClient]);
 
   return {
     individual: individualQuery.data || [],
     isLoading: individualQuery.isLoading,
+    competitionId: activeCompetition?.id,
   };
 }
