@@ -18,11 +18,13 @@
     
     <link rel="canonical" href="/" />
 
-    <!-- Preconnect to Google Fonts for faster loading -->
+    <!-- Preconnect to critical origins -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Load fonts with display=swap to prevent render blocking -->
-    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://exqohrszfcwevjgtesuz.supabase.co" crossorigin />
+    <!-- Load fonts non-render-blocking with media trick -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;500;600;700&display=swap" /></noscript>
   </head>
 
   <body class="dark">
