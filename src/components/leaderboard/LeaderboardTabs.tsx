@@ -1,11 +1,13 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
+import { useCompetitions } from '@/hooks/useCompetitions';
 import { Crown, Award, Medal, Droplet } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import DOMPurify from 'dompurify';
 
 export function LeaderboardTabs() {
   const { individual, isLoading } = useLeaderboard();
+  const { activeCompetition } = useCompetitions();
 
   if (isLoading) {
     return (
@@ -17,6 +19,11 @@ export function LeaderboardTabs() {
 
   return (
     <div className="space-y-2">
+      {activeCompetition && (
+        <div className="text-sm text-primary font-mono mb-2 px-2">
+          {activeCompetition.name}
+        </div>
+      )}
       <div className="text-xs text-muted-foreground font-mono mb-4 px-2">
         {individual.length} REGISTERED AGENTS
       </div>
@@ -37,7 +44,7 @@ export function LeaderboardTabs() {
 
       {individual.length === 0 && (
         <div className="text-center py-8 text-muted-foreground font-mono">
-          NO AGENTS REGISTERED YET
+          {activeCompetition ? 'NO APPROVED AGENTS FOR THIS EVENT' : 'NO ACTIVE EVENT'}
         </div>
       )}
     </div>

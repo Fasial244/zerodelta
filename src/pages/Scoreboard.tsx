@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
+import { useCompetitions } from '@/hooks/useCompetitions';
 import { Badge, UserCheck, TrendingUp, Crown, Award, Medal } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import DOMPurify from 'dompurify';
@@ -14,7 +15,8 @@ interface ConfettiParticle {
 }
 
 export default function Scoreboard() {
-  const { individual, isLoading } = useLeaderboard();
+  const { individual, isLoading, competitionId } = useLeaderboard();
+  const { activeCompetition } = useCompetitions();
   const [scrollPosition, setScrollPosition] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [liveUserCount, setLiveUserCount] = useState(0);
@@ -59,21 +61,28 @@ export default function Scoreboard() {
     prevLeaderRef.current = currentLeader || null;
   }, [individual]);
 
-  // Fetch live user count
+  // Fetch registered user count for the active competition
   useEffect(() => {
     const fetchUserCount = async () => {
+      if (!competitionId) {
+        setLiveUserCount(0);
+        return;
+      }
+      
       const { count } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
+        .from('competition_registrations')
+        .select('*', { count: 'exact', head: true })
+        .eq('competition_id', competitionId)
+        .eq('status', 'approved');
       setLiveUserCount(count || 0);
     };
 
     fetchUserCount();
 
-    // Subscribe to profile changes for live count
+    // Subscribe to registration changes for live count
     const channel = supabase
       .channel('live-user-count')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'competition_registrations' }, () => {
         fetchUserCount();
       })
       .subscribe();
@@ -81,7 +90,7 @@ export default function Scoreboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [competitionId]);
 
   // Confetti effect
   const triggerConfetti = () => {
@@ -227,7 +236,7 @@ export default function Scoreboard() {
             <Badge className="w-8 h-8 text-primary" />
             <div>
               <h1 className="text-2xl font-bold text-primary tracking-wider font-mono">
-                INCIDENT BOARD
+                {activeCompetition?.name || 'INCIDENT BOARD'}
               </h1>
               <p className="text-xs text-muted-foreground font-mono">
                 CASE #2025 // LIVE DETECTIVE RANKINGS
