@@ -55,12 +55,12 @@ export function useAdmin() {
     queryKey: ["admin-users", isAdminQuery.data],
     queryFn: async () => {
       console.log("Fetching users for admin panel...");
-      // Admin user management - explicit columns
+      // Admin user management - explicit columns including full_name and university_id
       const { data, error } = await supabase
         .from("profiles")
         .select(
           `
-          id, username, avatar_url, team_id, is_banned, is_locked, created_at, updated_at,
+          id, username, full_name, university_id, avatar_url, team_id, is_banned, is_locked, created_at, updated_at,
           teams (name),
           solves (id, points_awarded)
         `,

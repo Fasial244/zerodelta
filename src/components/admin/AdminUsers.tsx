@@ -94,12 +94,19 @@ export function AdminUsers() {
                       </Badge>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono mt-1">
-                    <span className="text-primary">{calculateTotalPoints(user.solves)} PTS</span>
-                    <span>•</span>
-                    <span>{user.solves?.length || 0} SOLVES</span>
-                    <span>•</span>
-                    <span>{user.teams?.name ? `UNIT: ${DOMPurify.sanitize(user.teams.name)}` : "ROGUE AGENT"}</span>
+                  <div className="text-xs text-muted-foreground font-mono mt-1 space-y-0.5">
+                    <div className="flex items-center gap-3">
+                      <span className="text-primary">{calculateTotalPoints(user.solves)} PTS</span>
+                      <span>•</span>
+                      <span>{user.solves?.length || 0} SOLVES</span>
+                      <span>•</span>
+                      <span>{user.teams?.name ? `UNIT: ${DOMPurify.sanitize(user.teams.name)}` : "ROGUE AGENT"}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-muted-foreground/70">
+                      <span>ID: {user.id.slice(0, 8)}...</span>
+                      {user.full_name && <span>• {DOMPurify.sanitize(user.full_name)}</span>}
+                      {user.university_id && <span>• UID: {DOMPurify.sanitize(user.university_id)}</span>}
+                    </div>
                   </div>
                 </div>
               </div>
