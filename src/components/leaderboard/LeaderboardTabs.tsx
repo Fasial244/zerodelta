@@ -9,6 +9,9 @@ export function LeaderboardTabs() {
   const { individual, isLoading } = useLeaderboard();
   const { activeCompetition } = useCompetitions();
 
+  // Check if anyone has points (competition has started with solves)
+  const hasAnyPoints = individual.some(entry => entry.total_points > 0);
+
   if (isLoading) {
     return (
       <div className="text-center py-8 text-muted-foreground font-mono animate-pulse">
@@ -38,6 +41,7 @@ export function LeaderboardTabs() {
             avatar={entry.avatar_url}
             solves={entry.solve_count}
             firstBloods={entry.first_bloods}
+            hasAnyPoints={hasAnyPoints}
           />
         ))}
       </AnimatePresence>
@@ -58,10 +62,17 @@ interface LeaderboardRowProps {
   avatar: string | null;
   solves: number;
   firstBloods: number;
+  hasAnyPoints: boolean;
 }
 
-function LeaderboardRow({ rank, name, points, avatar, solves, firstBloods }: LeaderboardRowProps) {
+function LeaderboardRow({ rank, name, points, avatar, solves, firstBloods, hasAnyPoints }: LeaderboardRowProps) {
+  // Only show special styling for top 3 if there are actual points
+  const isTopRank = hasAnyPoints && points > 0 && rank <= 3;
+
   const getRankIcon = () => {
+    if (!isTopRank) {
+      return <span className="text-sm font-mono text-muted-foreground">#{rank}</span>;
+    }
     switch (rank) {
       case 1:
         return <Crown className="w-5 h-5 text-primary" />;
@@ -75,6 +86,9 @@ function LeaderboardRow({ rank, name, points, avatar, solves, firstBloods }: Lea
   };
 
   const getRowStyle = () => {
+    if (!isTopRank) {
+      return 'bg-card/30 border-border/30 hover:bg-card/50';
+    }
     switch (rank) {
       case 1:
         return 'bg-primary/10 border-primary/40 shadow-[0_0_20px_hsl(var(--primary)/0.15)]';
@@ -84,6 +98,22 @@ function LeaderboardRow({ rank, name, points, avatar, solves, firstBloods }: Lea
         return 'bg-secondary/10 border-secondary/40';
       default:
         return 'bg-card/30 border-border/30 hover:bg-card/50';
+    }
+  };
+
+  const getAvatarBorder = () => {
+    if (!isTopRank) {
+      return 'border-border';
+    }
+    switch (rank) {
+      case 1:
+        return 'border-primary';
+      case 2:
+        return 'border-muted';
+      case 3:
+        return 'border-secondary';
+      default:
+        return 'border-border';
     }
   };
 
@@ -106,12 +136,7 @@ function LeaderboardRow({ rank, name, points, avatar, solves, firstBloods }: Lea
       </div>
 
       {/* Avatar */}
-      <Avatar className={`
-        w-10 h-10 border-2
-        ${rank === 1 ? 'border-primary' : 
-          rank === 2 ? 'border-muted' : 
-          rank === 3 ? 'border-secondary' : 'border-border'}
-      `}>
+      <Avatar className={`w-10 h-10 border-2 ${getAvatarBorder()}`}>
         <AvatarImage src={avatar || undefined} />
         <AvatarFallback className="bg-muted text-muted-foreground font-mono">
           {name.charAt(0).toUpperCase()}
@@ -122,7 +147,7 @@ function LeaderboardRow({ rank, name, points, avatar, solves, firstBloods }: Lea
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span 
-            className={`font-mono font-medium truncate ${rank <= 3 ? 'text-primary' : 'text-foreground'}`}
+            className={`font-mono font-medium truncate ${isTopRank ? 'text-primary' : 'text-foreground'}`}
             dangerouslySetInnerHTML={{ __html: name }}
           />
           {firstBloods > 0 && (
@@ -139,7 +164,7 @@ function LeaderboardRow({ rank, name, points, avatar, solves, firstBloods }: Lea
 
       {/* Points */}
       <div className="text-right">
-        <div className={`font-mono font-bold ${rank === 1 ? 'text-primary text-lg' : 'text-foreground'}`}>
+        <div className={`font-mono font-bold ${isTopRank && rank === 1 ? 'text-primary text-lg' : 'text-foreground'}`}>
           {points.toLocaleString()}
         </div>
         <div className="text-xs text-muted-foreground font-mono">pts</div>

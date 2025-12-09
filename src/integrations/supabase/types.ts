@@ -352,6 +352,51 @@ export type Database = {
           },
         ]
       }
+      score_snapshots: {
+        Row: {
+          competition_id: string
+          created_at: string
+          id: string
+          points: number
+          rank: number
+          snapshot_at: string
+          user_id: string
+        }
+        Insert: {
+          competition_id: string
+          created_at?: string
+          id?: string
+          points?: number
+          rank?: number
+          snapshot_at?: string
+          user_id: string
+        }
+        Update: {
+          competition_id?: string
+          created_at?: string
+          id?: string
+          points?: number
+          rank?: number
+          snapshot_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "score_snapshots_competition_id_fkey"
+            columns: ["competition_id"]
+            isOneToOne: false
+            referencedRelation: "competitions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "score_snapshots_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solves: {
         Row: {
           challenge_id: string
