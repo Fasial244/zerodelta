@@ -46,8 +46,8 @@ export function useCompetitions() {
     },
   });
 
-  // Fetch active competition
-  const { data: activeCompetition } = useQuery({
+  // Fetch active competition (available to all users including anonymous)
+  const { data: activeCompetition, isLoading: activeCompetitionLoading } = useQuery({
     queryKey: ['active-competition'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -59,6 +59,7 @@ export function useCompetitions() {
       if (error && error.code !== 'PGRST116') throw error;
       return data as Competition | null;
     },
+    staleTime: 30000, // Cache for 30 seconds to reduce requests
   });
 
   // Fetch user's registration for active competition

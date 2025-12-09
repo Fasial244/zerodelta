@@ -335,7 +335,7 @@ Deno.serve(async (req) => {
     const { data: decaySettings } = await supabase
       .from('system_settings')
       .select('key, value')
-      .in('key', ['decay_rate', 'decay_factor', 'min_points']);
+      .in('key', ['decay_rate', 'decay_factor', 'min_points', 'first_blood_bonus']);
 
     const decayMap: Record<string, string> = {};
     decaySettings?.forEach(s => decayMap[s.key] = s.value);
@@ -343,14 +343,21 @@ Deno.serve(async (req) => {
     const decayRate = parseFloat(decayMap.decay_rate || '0.5');
     const decayFactor = parseFloat(decayMap.decay_factor || '10');
     const minPoints = parseInt(decayMap.min_points || '50');
+    const firstBloodBonus = parseInt(decayMap.first_blood_bonus || '10');
 
-    const awardedPoints = Math.max(
+    // Check first blood
+    const isFirstBlood = !challenge.first_blood_user_id;
+
+    // Calculate base points with decay
+    let awardedPoints = Math.max(
       minPoints,
       Math.floor(challenge.points * Math.pow(decayRate, challenge.solve_count / decayFactor))
     );
 
-    // Check first blood
-    const isFirstBlood = !challenge.first_blood_user_id;
+    // Add first blood bonus
+    if (isFirstBlood) {
+      awardedPoints += firstBloodBonus;
+    }
 
     // Insert solve
     await supabase.from('solves').insert({
@@ -409,7 +416,7 @@ Deno.serve(async (req) => {
       points_awarded: awardedPoints,
       is_first_blood: isFirstBlood,
       message: isFirstBlood 
-        ? `🩸 FIRST BLOOD! You earned ${awardedPoints} points!`
+        ? `🩸 FIRST BLOOD! You earned ${awardedPoints} points (+${firstBloodBonus} bonus)!`
         : `Case cracked! You earned ${awardedPoints} points!`,
     }), {
       status: 200,

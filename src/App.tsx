@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,17 +8,33 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { SoundProvider } from "@/components/effects/SoundManager";
 import { CelebrationOverlay } from "@/components/effects/CelebrationOverlay";
 import { RealtimeManager } from "@/components/realtime/RealtimeManager";
+import { MaintenanceWrapper } from "./components/MaintenanceWrapper";
+
+// Critical pages loaded immediately
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import Challenges from "./pages/Challenges";
-import Leaderboard from "./pages/Leaderboard";
-import Admin from "./pages/Admin";
-import Profile from "./pages/Profile";
-import Activity from "./pages/Activity";
-import Authors from "./pages/Authors";
-import Scoreboard from "./pages/Scoreboard";
 import NotFound from "./pages/NotFound";
-import { MaintenanceWrapper } from "./components/MaintenanceWrapper";
+
+// Lazy load heavy pages to reduce initial bundle size
+const Challenges = lazy(() => import("./pages/Challenges"));
+const Leaderboard = lazy(() => import("./pages/Leaderboard"));
+const Admin = lazy(() => import("./pages/Admin"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Activity = lazy(() => import("./pages/Activity"));
+const Authors = lazy(() => import("./pages/Authors"));
+const Scoreboard = lazy(() => import("./pages/Scoreboard"));
+
+// Loading fallback component
+function PageLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="text-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-sm text-muted-foreground font-mono">LOADING...</p>
+      </div>
+    </div>
+  );
+}
 
 // React Query setup with enhanced real-time configuration
 const queryClient = new QueryClient({
@@ -44,19 +61,47 @@ const App = () => (
             <RealtimeManager />
             {/* Public routes outside MaintenanceWrapper */}
             <Routes>
-              <Route path="/scoreboard" element={<Scoreboard />} />
-              <Route path="/authors" element={<Authors />} />
+              <Route path="/scoreboard" element={
+                <Suspense fallback={<PageLoader />}>
+                  <Scoreboard />
+                </Suspense>
+              } />
+              <Route path="/authors" element={
+                <Suspense fallback={<PageLoader />}>
+                  <Authors />
+                </Suspense>
+              } />
               <Route path="*" element={
                 <MaintenanceWrapper>
                   <CelebrationOverlay />
                   <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/auth" element={<Auth />} />
-                    <Route path="/challenges" element={<Challenges />} />
-                    <Route path="/leaderboard" element={<Leaderboard />} />
-                    <Route path="/admin" element={<Admin />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="/activity" element={<Activity />} />
+                    <Route path="/challenges" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <Challenges />
+                      </Suspense>
+                    } />
+                    <Route path="/leaderboard" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <Leaderboard />
+                      </Suspense>
+                    } />
+                    <Route path="/admin" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <Admin />
+                      </Suspense>
+                    } />
+                    <Route path="/profile" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <Profile />
+                      </Suspense>
+                    } />
+                    <Route path="/activity" element={
+                      <Suspense fallback={<PageLoader />}>
+                        <Activity />
+                      </Suspense>
+                    } />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </MaintenanceWrapper>
