@@ -1,9 +1,19 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { User } from "react-feather"; // Assuming you're using react-feather for the icon
-import { useAuth } from "../hooks/useAuth"; // Assuming this hook exists
-import { useToast } from "../hooks/useToast"; // Assuming this hook exists
-import { usernameSchema } from "../validationSchemas"; // Assuming you have a validation schema for username
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { User } from "lucide-react";
+import { z } from "zod";
+
+const usernameSchema = z
+  .string()
+  .trim()
+  .min(3, "Username must be at least 3 characters")
+  .max(32, "Username too long")
+  .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens");
 
 interface UsernameSetupModalProps {
   onComplete: () => void;
@@ -21,7 +31,6 @@ export function UsernameSetupModal({ onComplete }: UsernameSetupModalProps) {
     e.preventDefault();
     setError(null);
 
-    // Validate username input
     const result = usernameSchema.safeParse(username);
     if (!result.success) {
       setError(result.error.errors[0].message);
@@ -29,24 +38,17 @@ export function UsernameSetupModal({ onComplete }: UsernameSetupModalProps) {
     }
 
     setIsLoading(true);
-
     try {
       const { error: updateError } = await updateProfile({ username: username.trim() });
-
-      if (updateError) {
-        throw updateError;
-      }
+      if (updateError) throw updateError;
 
       toast({
         title: "Username set!",
         description: "Your profile has been updated.",
       });
-
-      onComplete(); // Call the onComplete prop after successful update
+      onComplete();
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : "Failed to update username";
-      setError(errorMessage);
-
       toast({
         title: "Error",
         description: errorMessage,
@@ -68,27 +70,41 @@ export function UsernameSetupModal({ onComplete }: UsernameSetupModalProps) {
 
             <h2 className="text-2xl font-bold text-center mb-2 text-glow-cyan">SET YOUR CALLSIGN</h2>
 
-            {/* Add form elements here if required */}
+            <p className="text-muted-foreground text-center mb-6 font-mono text-sm">
+              Choose a username for the leaderboard
+            </p>
+
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+              <div className="space-y-2">
+                <Label htmlFor="new-username" className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-primary" />
                   Username
-                </label>
-                <input
-                  id="username"
+                </Label>
+                <Input
+                  id="new-username"
                   type="text"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="mt-2 p-2 w-full border border-gray-300 rounded-md"
-                  disabled={isLoading}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    setError(null);
+                  }}
+                  placeholder="ghost_hacker"
+                  className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${
+                    error ? "border-destructive" : ""
+                  }`}
+                  autoFocus
+                  maxLength={32}
                 />
+                {error && <p className="text-sm text-destructive">{error}</p>}
               </div>
 
-              {error && <p className="text-sm text-red-600">{error}</p>}
-
-              <button type="submit" className="w-full py-2 mt-4 bg-blue-600 text-white rounded-md" disabled={isLoading}>
-                {isLoading ? "Updating..." : "Update Username"}
-              </button>
+              <Button
+                type="submit"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-mono"
+                disabled={isLoading}
+              >
+                {isLoading ? <span className="animate-pulse">SAVING...</span> : "CONFIRM USERNAME"}
+              </Button>
             </form>
           </div>
         </div>
