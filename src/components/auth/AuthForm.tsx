@@ -5,13 +5,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Shield, User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Shield, User, Mail, Lock, Eye, EyeOff, Building, BadgeCheck } from 'lucide-react';
 import { z } from 'zod';
 
 // Validation schemas
 const emailSchema = z.string().trim().email('Invalid email address').max(255, 'Email too long');
 const passwordSchema = z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password too long');
 const usernameSchema = z.string().trim().min(3, 'Username must be at least 3 characters').max(32, 'Username too long').regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens');
+const fullNameSchema = z.string().trim().min(2, 'Full name must be at least 2 characters').max(100, 'Full name too long');
+const universityIdSchema = z.string().trim().min(1, 'University ID is required').max(50, 'University ID too long');
 
 interface AuthFormProps {
   onSuccess?: () => void;
@@ -22,15 +24,23 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [universityId, setUniversityId] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; username?: string }>({});
+  const [errors, setErrors] = useState<{ 
+    email?: string; 
+    password?: string; 
+    username?: string;
+    fullName?: string;
+    universityId?: string;
+  }>({});
   
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const { toast } = useToast();
 
   const validateForm = (): boolean => {
-    const newErrors: { email?: string; password?: string; username?: string } = {};
+    const newErrors: typeof errors = {};
     
     const emailResult = emailSchema.safeParse(email);
     if (!emailResult.success) {
@@ -46,6 +56,16 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
       const usernameResult = usernameSchema.safeParse(username);
       if (!usernameResult.success) {
         newErrors.username = usernameResult.error.errors[0].message;
+      }
+
+      const fullNameResult = fullNameSchema.safeParse(fullName);
+      if (!fullNameResult.success) {
+        newErrors.fullName = fullNameResult.error.errors[0].message;
+      }
+
+      const universityIdResult = universityIdSchema.safeParse(universityId);
+      if (!universityIdResult.success) {
+        newErrors.universityId = universityIdResult.error.errors[0].message;
       }
     }
     
@@ -65,12 +85,16 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
         const { error } = await signIn(email.trim(), password);
         if (error) throw error;
         toast({ title: 'Welcome back!', description: 'Successfully logged in.' });
-        // Don't call onSuccess - let Auth.tsx useEffect handle redirect via user state change
       } else {
-        const { error } = await signUp(email.trim(), password, username.trim());
+        const { error } = await signUp(
+          email.trim(), 
+          password, 
+          username.trim(),
+          fullName.trim(),
+          universityId.trim()
+        );
         if (error) throw error;
         toast({ title: 'Account created!', description: 'You can now log in.' });
-        // Don't call onSuccess - let Auth.tsx useEffect handle redirect via user state change
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
@@ -154,28 +178,76 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="username" className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-primary" />
-                  Username
-                </Label>
-                <Input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => {
-                    setUsername(e.target.value);
-                    setErrors(prev => ({ ...prev, username: undefined }));
-                  }}
-                  placeholder="ghost_hacker"
-                  className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.username ? 'border-destructive' : ''}`}
-                  required={!isLogin}
-                  maxLength={32}
-                />
-                {errors.username && (
-                  <p className="text-sm text-destructive">{errors.username}</p>
-                )}
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName" className="flex items-center gap-2">
+                    <BadgeCheck className="h-4 w-4 text-primary" />
+                    Full Name
+                  </Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    value={fullName}
+                    onChange={(e) => {
+                      setFullName(e.target.value);
+                      setErrors(prev => ({ ...prev, fullName: undefined }));
+                    }}
+                    placeholder="Faisal AL-Jaber"
+                    className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.fullName ? 'border-destructive' : ''}`}
+                    required={!isLogin}
+                    maxLength={100}
+                  />
+                  {errors.fullName && (
+                    <p className="text-sm text-destructive">{errors.fullName}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="universityId" className="flex items-center gap-2">
+                    <Building className="h-4 w-4 text-primary" />
+                    University ID
+                  </Label>
+                  <Input
+                    id="universityId"
+                    type="text"
+                    value={universityId}
+                    onChange={(e) => {
+                      setUniversityId(e.target.value);
+                      setErrors(prev => ({ ...prev, universityId: undefined }));
+                    }}
+                    placeholder="202012345"
+                    className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.universityId ? 'border-destructive' : ''}`}
+                    required={!isLogin}
+                    maxLength={50}
+                  />
+                  {errors.universityId && (
+                    <p className="text-sm text-destructive">{errors.universityId}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="username" className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" />
+                    Username
+                  </Label>
+                  <Input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => {
+                      setUsername(e.target.value);
+                      setErrors(prev => ({ ...prev, username: undefined }));
+                    }}
+                    placeholder="ghost_hacker"
+                    className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.username ? 'border-destructive' : ''}`}
+                    required={!isLogin}
+                    maxLength={32}
+                  />
+                  {errors.username && (
+                    <p className="text-sm text-destructive">{errors.username}</p>
+                  )}
+                </div>
+              </>
             )}
 
             <div className="space-y-2">

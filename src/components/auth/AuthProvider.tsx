@@ -10,6 +10,8 @@ interface Profile {
   is_banned: boolean;
   is_locked: boolean;
   created_at: string;
+  full_name: string | null;
+  university_id: string | null;
 }
 
 interface AuthContextType {
@@ -19,7 +21,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ data: any; error: any }>;
-  signUp: (email: string, password: string, username: string) => Promise<{ data: any; error: any }>;
+  signUp: (email: string, password: string, username: string, fullName?: string, universityId?: string) => Promise<{ data: any; error: any }>;
   signInWithGoogle: () => Promise<{ data: any; error: any }>;
   signOut: () => Promise<{ error: any }>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ data: any; error: any }>;
@@ -40,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const [profileResult, roleResult] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, username, avatar_url, team_id, is_banned, is_locked, created_at')
+          .select('id, username, avatar_url, team_id, is_banned, is_locked, created_at, full_name, university_id')
           .eq('id', userId)
           .maybeSingle(),
         supabase
@@ -55,7 +57,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAdmin(roleResult.data?.role === 'admin');
     } catch (error) {
       console.error("Profile fetch error:", error);
-      // Don't throw - allow app to continue with null profile
     }
   };
 
@@ -135,15 +136,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return supabase.auth.signInWithPassword({ email, password });
   };
 
-  const signUp = async (email: string, password: string, username: string) => {
-    return supabase.auth.signUp({ 
+  const signUp = async (
+    email: string, 
+    password: string, 
+    username: string,
+    fullName?: string,
+    universityId?: string
+  ) => {
+    const result = await supabase.auth.signUp({ 
       email, 
       password, 
       options: { 
-        data: { username },
+        data: { username, full_name: fullName, university_id: universityId },
         emailRedirectTo: `${window.location.origin}/challenges`
       } 
     });
+
+    // If signup successful and we have full_name/university_id, update the profile
+    if (!result.error && result.data.user && (fullName || universityId)) {
+      // Wait a bit for the trigger to create the profile first
+      setTimeout(async () => {
+        await supabase
+          .from('profiles')
+          .update({ 
+            full_name: fullName || null, 
+            university_id: universityId || null 
+          })
+          .eq('id', result.data.user!.id);
+      }, 1000);
+    }
+
+    return result;
   };
 
   const signInWithGoogle = async () => {
@@ -167,7 +190,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from('profiles')
       .update(updates)
       .eq('id', user.id)
-      .select('id, username, avatar_url, team_id, is_banned, is_locked, created_at')
+      .select('id, username, avatar_url, team_id, is_banned, is_locked, created_at, full_name, university_id')
       .single();
     
     if (result.data) {

@@ -83,6 +83,36 @@ export type Database = {
           },
         ]
       }
+      authors: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          image_url: string | null
+          name: string
+          role: string
+          social_link: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          name: string
+          role: string
+          social_link?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          name?: string
+          role?: string
+          social_link?: string | null
+        }
+        Relationships: []
+      }
       challenge_instances: {
         Row: {
           challenge_id: string
@@ -272,30 +302,36 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          full_name: string | null
           id: string
           is_banned: boolean
           is_locked: boolean
           team_id: string | null
+          university_id: string | null
           updated_at: string
           username: string | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          full_name?: string | null
           id: string
           is_banned?: boolean
           is_locked?: boolean
           team_id?: string | null
+          university_id?: string | null
           updated_at?: string
           username?: string | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
+          full_name?: string | null
           id?: string
           is_banned?: boolean
           is_locked?: boolean
           team_id?: string | null
+          university_id?: string | null
           updated_at?: string
           username?: string | null
         }

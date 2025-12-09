@@ -5,10 +5,11 @@ import { AdminUsers } from '@/components/admin/AdminUsers';
 import { AdminSettings } from '@/components/admin/AdminSettings';
 import { AdminActivity } from '@/components/admin/AdminActivity';
 import { AdminCompetitions } from '@/components/admin/AdminCompetitions';
+import { AdminAuthors } from '@/components/admin/AdminAuthors';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Shield, Users, Settings, Activity, Target, Tv, Trophy } from 'lucide-react';
+import { Shield, Users, Settings, Activity, Target, Tv, Trophy, UserCheck } from 'lucide-react';
 
 export default function Admin() {
   return (
@@ -34,7 +35,7 @@ export default function Admin() {
           </div>
 
           <Tabs defaultValue="challenges" className="space-y-6">
-            <TabsList className="grid w-full max-w-3xl grid-cols-5">
+            <TabsList className="grid w-full max-w-4xl grid-cols-6">
               <TabsTrigger value="challenges" className="font-mono">
                 <Target className="w-4 h-4 mr-2" />
                 Challenges
@@ -46,6 +47,10 @@ export default function Admin() {
               <TabsTrigger value="users" className="font-mono">
                 <Users className="w-4 h-4 mr-2" />
                 Users
+              </TabsTrigger>
+              <TabsTrigger value="authors" className="font-mono">
+                <UserCheck className="w-4 h-4 mr-2" />
+                Authors
               </TabsTrigger>
               <TabsTrigger value="settings" className="font-mono">
                 <Settings className="w-4 h-4 mr-2" />
@@ -72,6 +77,12 @@ export default function Admin() {
             <TabsContent value="users">
               <ErrorBoundary>
                 <AdminUsers />
+              </ErrorBoundary>
+            </TabsContent>
+
+            <TabsContent value="authors">
+              <ErrorBoundary>
+                <AdminAuthors />
               </ErrorBoundary>
             </TabsContent>
 

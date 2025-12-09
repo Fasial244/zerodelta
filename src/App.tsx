@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { SoundProvider } from "@/components/effects/SoundManager";
 import { CelebrationOverlay } from "@/components/effects/CelebrationOverlay";
+import { RealtimeManager } from "@/components/realtime/RealtimeManager";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Challenges from "./pages/Challenges";
@@ -13,6 +14,7 @@ import Leaderboard from "./pages/Leaderboard";
 import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
 import Activity from "./pages/Activity";
+import Authors from "./pages/Authors";
 import Scoreboard from "./pages/Scoreboard";
 import NotFound from "./pages/NotFound";
 import { MaintenanceWrapper } from "./components/MaintenanceWrapper";
@@ -27,6 +29,8 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
+            {/* Global Realtime Manager for live updates */}
+            <RealtimeManager />
             {/* Scoreboard outside MaintenanceWrapper so it works during maintenance */}
             <Routes>
               <Route path="/scoreboard" element={<Scoreboard />} />
@@ -41,6 +45,7 @@ const App = () => (
                     <Route path="/admin" element={<Admin />} />
                     <Route path="/profile" element={<Profile />} />
                     <Route path="/activity" element={<Activity />} />
+                    <Route path="/authors" element={<Authors />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </MaintenanceWrapper>

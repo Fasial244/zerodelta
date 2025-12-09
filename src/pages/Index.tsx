@@ -10,6 +10,43 @@ export default function Index() {
   const { user } = useAuth();
   const { settings, gameState, countdown } = useSystemSettings();
 
+  // Determine status display based on game state
+  const getStatusDisplay = () => {
+    if (gameState === 'paused') {
+      return {
+        label: 'STATUS: SYSTEM HALTED',
+        color: 'text-destructive',
+        bgColor: 'border-destructive/50',
+        icon: '⛔',
+      };
+    }
+    if (gameState === 'before_start') {
+      return {
+        label: 'STATUS: PREPARING TO LAUNCH',
+        color: 'text-warning',
+        bgColor: 'border-warning/50',
+        icon: '⏳',
+      };
+    }
+    if (gameState === 'active') {
+      return {
+        label: 'STATUS: SYSTEM ACTIVE',
+        color: 'text-accent',
+        bgColor: 'border-accent/50',
+        icon: '⚡',
+      };
+    }
+    // ended
+    return {
+      label: 'STATUS: MISSION COMPLETE',
+      color: 'text-muted-foreground',
+      bgColor: 'border-border',
+      icon: '✓',
+    };
+  };
+
+  const status = getStatusDisplay();
+
   return (
     <Layout>
       <div className="container mx-auto px-4 pt-28 pb-8">
@@ -38,42 +75,22 @@ export default function Index() {
           </p>
 
           {/* Game Status */}
-          <div className="inline-block px-6 py-3 rounded-lg bg-card border border-primary/50 mb-8">
-            {gameState === 'before_start' && (
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-1">CTF BEGINS IN</p>
-                <p className="text-3xl font-mono text-primary animate-pulse">
-                  {countdown}
-                </p>
-              </div>
-            )}
-            {gameState === 'active' && (
-              <div className="text-center">
-                <p className="text-sm text-primary mb-1">⚡ GAME ACTIVE</p>
-                <p className="text-3xl font-mono text-foreground">
-                  {countdown}
-                </p>
-              </div>
+          <div className={`inline-block px-6 py-3 rounded-lg bg-card border ${status.bgColor} mb-8`}>
+            <p className={`text-sm font-mono mb-1 ${status.color}`}>
+              {status.icon} {status.label}
+            </p>
+            {(gameState === 'before_start' || gameState === 'active') && (
+              <p className="text-3xl font-mono text-foreground">
+                {countdown}
+              </p>
             )}
             {gameState === 'ended' && (
-              <div className="text-center">
-                <p className="text-xl font-mono text-muted-foreground mb-3">
-                  CTF HAS ENDED
-                </p>
-                <Button asChild size="sm" variant="outline" className="font-mono">
-                  <Link to="/leaderboard">
-                    <Trophy className="w-4 h-4 mr-2" />
-                    View Final Scoreboard
-                  </Link>
-                </Button>
-              </div>
-            )}
-            {gameState === 'paused' && (
-              <div className="text-center">
-                <p className="text-xl font-mono text-warning animate-pulse">
-                  ⏸ GAME PAUSED
-                </p>
-              </div>
+              <Button asChild size="sm" variant="outline" className="font-mono mt-2">
+                <Link to="/leaderboard">
+                  <Trophy className="w-4 h-4 mr-2" />
+                  View Final Scoreboard
+                </Link>
+              </Button>
             )}
           </div>
 
@@ -102,6 +119,16 @@ export default function Index() {
                 </Link>
               </Button>
             )}
+          </div>
+
+          {/* Credits Button */}
+          <div className="mt-4">
+            <Button asChild variant="ghost" size="sm" className="font-mono text-muted-foreground hover:text-primary">
+              <Link to="/authors">
+                <Users className="w-4 h-4 mr-2" />
+                CREDITS / OPERATIVES
+              </Link>
+            </Button>
           </div>
         </motion.div>
 
