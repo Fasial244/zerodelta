@@ -1,4 +1,3 @@
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -19,7 +18,20 @@ import Scoreboard from "./pages/Scoreboard";
 import NotFound from "./pages/NotFound";
 import { MaintenanceWrapper } from "./components/MaintenanceWrapper";
 
-const queryClient = new QueryClient();
+// CONFIGURE REAL-TIME BEHAVIOR
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Treat data as stale immediately. This forces a refetch on every component mount
+      // or window focus, ensuring users always see the latest data.
+      staleTime: 0,
+      // Refetch when the user returns to the tab
+      refetchOnWindowFocus: true,
+      // Retry failed requests (e.g. temporary network blip)
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -29,27 +41,31 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
-            {/* Global Realtime Manager for live updates */}
+            {/* Global Realtime Manager subscribes to DB changes */}
             <RealtimeManager />
-            {/* Scoreboard outside MaintenanceWrapper so it works during maintenance */}
             <Routes>
+              {/* Scoreboard is always public and distinct */}
               <Route path="/scoreboard" element={<Scoreboard />} />
-              <Route path="*" element={
-                <MaintenanceWrapper>
-                  <CelebrationOverlay />
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/auth" element={<Auth />} />
-                    <Route path="/challenges" element={<Challenges />} />
-                    <Route path="/leaderboard" element={<Leaderboard />} />
-                    <Route path="/admin" element={<Admin />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="/activity" element={<Activity />} />
-                    <Route path="/authors" element={<Authors />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </MaintenanceWrapper>
-              } />
+
+              <Route
+                path="*"
+                element={
+                  <MaintenanceWrapper>
+                    <CelebrationOverlay />
+                    <Routes>
+                      <Route path="/" element={<Index />} />
+                      <Route path="/auth" element={<Auth />} />
+                      <Route path="/challenges" element={<Challenges />} />
+                      <Route path="/leaderboard" element={<Leaderboard />} />
+                      <Route path="/admin" element={<Admin />} />
+                      <Route path="/profile" element={<Profile />} />
+                      <Route path="/activity" element={<Activity />} />
+                      <Route path="/authors" element={<Authors />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </MaintenanceWrapper>
+                }
+              />
             </Routes>
           </AuthProvider>
         </BrowserRouter>
