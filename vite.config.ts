@@ -15,4 +15,19 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs', '@radix-ui/react-tooltip'],
+          'chart-vendor': ['recharts'],
+          'query-vendor': ['@tanstack/react-query'],
+          'motion-vendor': ['framer-motion'],
+        },
+      },
+    },
+    cssCodeSplit: true,
+    sourcemap: false,
+  },
 }));

@@ -142,33 +142,6 @@ export default function Index() {
             </motion.div>
           )}
 
-          {/* Event Alert for logged in but not registered users */}
-          {activeCompetition && user && !userRegistration && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mb-8 p-4 rounded-lg bg-primary/10 border border-primary/30"
-            >
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="w-6 h-6 text-primary" />
-                  <div className="text-left">
-                    <p className="font-mono font-bold text-primary">{activeCompetition.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      You are not registered for this event yet
-                    </p>
-                  </div>
-                </div>
-                <Button asChild className="font-mono">
-                  <Link to="/challenges">
-                    <Target className="w-4 h-4 mr-2" />
-                    REGISTER NOW
-                  </Link>
-                </Button>
-              </div>
-            </motion.div>
-          )}
-
           {/* Pending approval alert */}
           {activeCompetition && userRegistration?.status === 'pending' && (
             <motion.div
