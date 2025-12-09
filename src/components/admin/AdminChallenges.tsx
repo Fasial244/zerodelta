@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, EyeOff, Globe, Terminal, FileDown } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { Plus, Edit, Trash2, Eye, EyeOff, Globe, Terminal, FileDown, Upload, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,19 +9,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Checkbox } from '@/components/ui/checkbox';
 import { useAdmin } from '@/hooks/useAdmin';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import DOMPurify from 'dompurify';
 
 const categories = ['Web', 'Pwn', 'Forensics', 'Crypto', 'Other'];
 const flagTypes = ['static', 'regex'];
+
+interface ChallengeFile {
+  name: string;
+  url: string;
+  size?: number;
+}
 
 interface ConnectionInfo {
   type?: 'web' | 'netcat' | 'file';
   url?: string;
   host?: string;
   port?: number;
+  files?: ChallengeFile[];
   [key: string]: unknown;
-  file_url?: string;
-  file_name?: string;
 }
 
 interface ChallengeForm {
@@ -36,8 +43,7 @@ interface ChallengeForm {
   connection_url: string;
   connection_host: string;
   connection_port: string;
-  file_url: string;
-  file_name: string;
+  files: ChallengeFile[];
 }
 
 const initialForm: ChallengeForm = {
@@ -52,8 +58,7 @@ const initialForm: ChallengeForm = {
   connection_url: '',
   connection_host: '',
   connection_port: '',
-  file_url: '',
-  file_name: '',
+  files: [],
 };
 
 export function AdminChallenges() {
@@ -61,6 +66,9 @@ export function AdminChallenges() {
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ChallengeForm>(initialForm);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const resetForm = () => {
     setForm(initialForm);
@@ -82,10 +90,87 @@ export function AdminChallenges() {
       connection_url: connInfo.url || '',
       connection_host: connInfo.host || '',
       connection_port: connInfo.port?.toString() || '',
-      file_url: connInfo.file_url || '',
-      file_name: connInfo.file_name || '',
+      files: connInfo.files || [],
     });
     setIsOpen(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    const newFiles: ChallengeFile[] = [];
+
+    try {
+      for (const file of Array.from(files)) {
+        // Generate unique filename with timestamp
+        const timestamp = Date.now();
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const filePath = `${timestamp}_${safeName}`;
+
+        const { data, error } = await supabase.storage
+          .from('challenge-files')
+          .upload(filePath, file);
+
+        if (error) {
+          toast({
+            title: 'Upload failed',
+            description: `Failed to upload ${file.name}: ${error.message}`,
+            variant: 'destructive',
+          });
+          continue;
+        }
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('challenge-files')
+          .getPublicUrl(data.path);
+
+        newFiles.push({
+          name: file.name,
+          url: urlData.publicUrl,
+          size: file.size,
+        });
+      }
+
+      setForm(prev => ({
+        ...prev,
+        files: [...prev.files, ...newFiles],
+      }));
+
+      if (newFiles.length > 0) {
+        toast({
+          title: 'Files uploaded',
+          description: `Successfully uploaded ${newFiles.length} file(s)`,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Upload error',
+        description: 'An unexpected error occurred during upload',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setForm(prev => ({
+      ...prev,
+      files: prev.files.filter((_, i) => i !== index),
+    }));
+  };
+
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -113,8 +198,7 @@ export function AdminChallenges() {
     } else if (form.connection_type === 'file') {
       connection_info = { 
         type: 'file', 
-        file_url: form.file_url, 
-        file_name: form.file_name 
+        files: form.files,
       };
     }
 
@@ -383,23 +467,73 @@ export function AdminChallenges() {
               )}
 
               {form.connection_type === 'file' && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label>File URL</Label>
-                    <Input
-                      value={form.file_url}
-                      onChange={(e) => setForm({ ...form, file_url: e.target.value })}
-                      placeholder="https://files.zerodelta.ctf/challenge.zip"
-                    />
+                    <Label>Challenge Files</Label>
+                    <div className="flex gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        onChange={handleFileUpload}
+                        className="hidden"
+                        id="file-upload"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isUploading}
+                        className="w-full"
+                      >
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="w-4 h-4 mr-2" />
+                            Upload Files
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Upload challenge files (ZIP, binary, images, etc.)
+                    </p>
                   </div>
-                  <div className="space-y-2">
-                    <Label>File Name</Label>
-                    <Input
-                      value={form.file_name}
-                      onChange={(e) => setForm({ ...form, file_name: e.target.value })}
-                      placeholder="challenge.zip"
-                    />
-                  </div>
+
+                  {/* Uploaded files list */}
+                  {form.files.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Uploaded Files</Label>
+                      <div className="border border-border rounded-lg divide-y divide-border">
+                        {form.files.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between p-3">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <FileDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                              <span className="text-sm truncate">{file.name}</span>
+                              {file.size && (
+                                <span className="text-xs text-muted-foreground flex-shrink-0">
+                                  ({formatFileSize(file.size)})
+                                </span>
+                              )}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeFile(index)}
+                              className="flex-shrink-0"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -423,59 +557,67 @@ export function AdminChallenges() {
             No challenges yet. Create one to get started!
           </p>
         ) : (
-          challenges.map((challenge) => (
-            <div
-              key={challenge.id}
-              className={`flex items-center justify-between p-4 rounded-lg border ${
-                challenge.is_active ? 'bg-card border-border' : 'bg-muted/50 border-muted'
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <Badge variant={challenge.is_active ? 'default' : 'secondary'}>
-                  {challenge.category}
-                </Badge>
-                <div>
-                  <h3 className="font-semibold text-foreground">
-                    {DOMPurify.sanitize(challenge.title)}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {challenge.points} pts • {challenge.solve_count} solves • {challenge.flag_type}
-                    {challenge.dependencies?.length > 0 && (
-                      <span className="ml-2">• {challenge.dependencies.length} deps</span>
+          challenges.map((challenge) => {
+            const connInfo = challenge.connection_info as ConnectionInfo;
+            const fileCount = connInfo?.files?.length || 0;
+            
+            return (
+              <div
+                key={challenge.id}
+                className={`flex items-center justify-between p-4 rounded-lg border ${
+                  challenge.is_active ? 'bg-card border-border' : 'bg-muted/50 border-muted'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <Badge variant={challenge.is_active ? 'default' : 'secondary'}>
+                    {challenge.category}
+                  </Badge>
+                  <div>
+                    <h3 className="font-semibold text-foreground">
+                      {DOMPurify.sanitize(challenge.title)}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {challenge.points} pts • {challenge.solve_count} solves • {challenge.flag_type}
+                      {challenge.dependencies?.length > 0 && (
+                        <span className="ml-2">• {challenge.dependencies.length} deps</span>
+                      )}
+                      {fileCount > 0 && (
+                        <span className="ml-2">• {fileCount} file{fileCount !== 1 ? 's' : ''}</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleEdit(challenge)}
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleToggleActive(challenge.id, challenge.is_active)}
+                  >
+                    {challenge.is_active ? (
+                      <Eye className="w-4 h-4" />
+                    ) : (
+                      <EyeOff className="w-4 h-4" />
                     )}
-                  </p>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleDelete(challenge.id)}
+                    className="text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleEdit(challenge)}
-                >
-                  <Edit className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleToggleActive(challenge.id, challenge.is_active)}
-                >
-                  {challenge.is_active ? (
-                    <Eye className="w-4 h-4" />
-                  ) : (
-                    <EyeOff className="w-4 h-4" />
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleDelete(challenge.id)}
-                  className="text-destructive hover:text-destructive"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

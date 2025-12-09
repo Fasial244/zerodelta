@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Terminal, ExternalLink, Copy, Download, Send, Loader2, AlertTriangle } from 'lucide-react';
+import { X, Terminal, ExternalLink, Copy, Download, Send, Loader2, AlertTriangle, FileDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -12,6 +12,12 @@ import ReactMarkdown from 'react-markdown';
 // Flag validation - max 256 chars, basic sanitization
 const MAX_FLAG_LENGTH = 256;
 const FLAG_PATTERN = /^[a-zA-Z0-9_{}\-!@#$%^&*()+=\[\]:;"'<>,.?/\\|`~\s]+$/;
+
+interface ChallengeFile {
+  name: string;
+  url: string;
+  size?: number;
+}
 
 interface ChallengeModalProps {
   challenge: Challenge;
@@ -64,7 +70,17 @@ export function ChallengeModal({ challenge, onClose, isGameEnded = false }: Chal
     toast({ title: 'Copied to clipboard!' });
   };
 
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   const isSubmitDisabled = isGameEnded || !canSubmit() || isSubmitting || !flagInput.trim() || isLocked;
+
+  // Get files from connection info
+  const files: ChallengeFile[] = connectionInfo?.files as ChallengeFile[] || [];
 
   return (
     <AnimatePresence>
@@ -170,7 +186,38 @@ export function ChallengeModal({ challenge, onClose, isGameEnded = false }: Chal
                   </div>
                 )}
 
-                {(connectionInfo.type === 'download' || connectionInfo.type === 'file') && (connectionInfo.file_url || connectionInfo.url) && (
+                {/* File downloads - supports multiple files */}
+                {connectionInfo.type === 'file' && files.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {files.length} file{files.length !== 1 ? 's' : ''} available for download:
+                    </p>
+                    <div className="space-y-2">
+                      {files.map((file, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.open(file.url, '_blank')}
+                            className="justify-start flex-1"
+                          >
+                            <FileDown className="w-4 h-4 mr-2" />
+                            <span className="truncate">{file.name}</span>
+                            {file.size && (
+                              <span className="text-xs text-muted-foreground ml-2">
+                                ({formatFileSize(file.size)})
+                              </span>
+                            )}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Legacy single file support */}
+                {(connectionInfo.type === 'download' || (connectionInfo.type === 'file' && files.length === 0)) && 
+                  (connectionInfo.file_url || connectionInfo.url) && (
                   <Button
                     variant="outline"
                     size="sm"
