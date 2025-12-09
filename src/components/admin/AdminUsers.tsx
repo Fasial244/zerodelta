@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Ban, Unlock, Search, Shield, ShieldOff, RotateCcw, Crown } from "lucide-react";
+import { Ban, Unlock, Search, Shield, ShieldOff, RotateCcw, Crown, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAdmin } from "@/hooks/useAdmin";
@@ -17,15 +17,61 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import DOMPurify from "dompurify";
+import { useToast } from "@/hooks/use-toast";
 
 export function AdminUsers() {
   const { users, banUser, unlockUser, promoteToAdmin, resetUserScore, isLoadingAdmin } = useAdmin();
   const [search, setSearch] = useState("");
+  const { toast } = useToast();
 
-  const filteredUsers = users.filter((user: any) => (user.username || "").toLowerCase().includes(search.toLowerCase()));
+  const filteredUsers = users.filter((user: any) => {
+    const searchLower = search.toLowerCase();
+    return (
+      (user.username || "").toLowerCase().includes(searchLower) ||
+      (user.full_name || "").toLowerCase().includes(searchLower) ||
+      (user.university_id || "").toLowerCase().includes(searchLower) ||
+      (user.id || "").toLowerCase().includes(searchLower)
+    );
+  });
 
   const calculateTotalPoints = (solves: any[]) => {
     return solves?.reduce((sum, s) => sum + (s.points_awarded || 0), 0) || 0;
+  };
+
+  const exportUsersCSV = () => {
+    if (users.length === 0) {
+      toast({ title: "No users to export", variant: "destructive" });
+      return;
+    }
+
+    const headers = ["ID", "Username", "Full Name", "University ID", "Team", "Points", "Solves", "Banned", "Locked", "Created At"];
+    const rows = users.map((user: any) => [
+      user.id,
+      user.username || "",
+      user.full_name || "",
+      user.university_id || "",
+      user.teams?.name || "",
+      calculateTotalPoints(user.solves),
+      user.solves?.length || 0,
+      user.is_banned ? "Yes" : "No",
+      user.is_locked ? "Yes" : "No",
+      new Date(user.created_at).toISOString(),
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `zerodelta-users-${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast({ title: "Users exported successfully!" });
   };
 
   // Improved Loading State
@@ -40,19 +86,25 @@ export function AdminUsers() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-xl font-bold text-foreground font-mono flex items-center gap-2">
           <Shield className="w-5 h-5 text-primary" />
-          OPERATIVE DATABASE
+          OPERATIVE DATABASE ({users.length})
         </h2>
-        <div className="relative w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search username..."
-            className="pl-9 bg-card border-primary/20 focus:border-primary/50"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, ID..."
+              className="pl-9 bg-card border-primary/20 focus:border-primary/50"
+            />
+          </div>
+          <Button onClick={exportUsersCSV} variant="outline" size="sm" className="gap-2">
+            <Download className="w-4 h-4" />
+            Export CSV
+          </Button>
         </div>
       </div>
 
