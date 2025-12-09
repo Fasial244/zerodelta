@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { useCompetitions } from '@/hooks/useCompetitions';
-import { Badge, UserCheck, TrendingUp, Crown, Award, Medal } from 'lucide-react';
+import { Badge, UserCheck, TrendingUp, Crown, Award, Medal, Trophy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import DOMPurify from 'dompurify';
 
@@ -26,6 +26,9 @@ export default function Scoreboard() {
   const containerRef = useRef<HTMLDivElement>(null);
   const prevRankingsRef = useRef<Map<string, number>>(new Map());
   const prevLeaderRef = useRef<string | null>(null);
+
+  // Check if anyone has points (competition has actual solves)
+  const hasAnyPoints = individual.some(p => p.total_points > 0);
 
   // Track rank changes and trigger animations
   useEffect(() => {
@@ -139,7 +142,11 @@ export default function Scoreboard() {
     }
   }, [scrollPosition]);
 
-  const getRankIcon = (rank: number) => {
+  const getRankIcon = (rank: number, hasPoints: boolean) => {
+    // Only show special icons if there are actual points
+    if (!hasPoints || !hasAnyPoints) {
+      return <span className="w-6 h-6 flex items-center justify-center text-sm font-mono text-muted-foreground">#{rank}</span>;
+    }
     switch (rank) {
       case 1:
         return <Crown className="w-12 h-12 text-primary animate-pulse" />;
@@ -152,7 +159,10 @@ export default function Scoreboard() {
     }
   };
 
-  const getRowStyle = (rank: number) => {
+  const getRowStyle = (rank: number, hasPoints: boolean) => {
+    if (!hasPoints || !hasAnyPoints) {
+      return 'bg-card/50 border-border/30';
+    }
     switch (rank) {
       case 1:
         return 'bg-primary/20 border-primary/50 shadow-[0_0_30px_hsl(var(--primary)/0.3)]';
@@ -162,6 +172,19 @@ export default function Scoreboard() {
         return 'bg-secondary/20 border-secondary/50';
       default:
         return 'bg-card/50 border-border/30';
+    }
+  };
+
+  const getPlaceLabel = (rank: number) => {
+    switch (rank) {
+      case 1:
+        return '1ST PLACE';
+      case 2:
+        return '2ND PLACE';
+      case 3:
+        return '3RD PLACE';
+      default:
+        return '';
     }
   };
 
@@ -276,7 +299,9 @@ export default function Scoreboard() {
         {top3.length > 0 && (
           <div className="mb-8">
             <div className="text-center mb-6">
-              <h2 className="text-xl font-mono text-primary tracking-widest">MOST WANTED</h2>
+              <h2 className="text-xl font-mono text-primary tracking-widest">
+                {hasAnyPoints ? 'TOP DETECTIVES' : 'REGISTERED AGENTS'}
+              </h2>
               <div className="w-32 h-0.5 bg-primary/50 mx-auto mt-2" />
             </div>
             
@@ -287,9 +312,10 @@ export default function Scoreboard() {
                 const actualRank = idx === 0 ? 2 : idx === 1 ? 1 : 3;
                 const sanitizedName = DOMPurify.sanitize(player.username || 'Anonymous');
                 const isRankingUp = rankUpPlayer === player.id;
+                const playerHasPoints = player.total_points > 0;
                 
                 // Size variations
-                const containerHeight = actualRank === 1 ? 'h-64' : 'h-52';
+                const containerHeight = actualRank === 1 ? 'h-72' : 'h-56';
                 const avatarSize = actualRank === 1 ? 'w-24 h-24' : 'w-20 h-20';
                 
                 return (
@@ -305,21 +331,42 @@ export default function Scoreboard() {
                     className={`
                       flex flex-col items-center justify-end ${containerHeight}
                       px-6 py-4 rounded-lg border
-                      ${getRowStyle(actualRank)}
+                      ${getRowStyle(actualRank, playerHasPoints)}
                       ${isRankingUp ? 'ring-2 ring-primary/50' : ''}
                     `}
                   >
+                    {/* Place label above icon - only show if has points */}
+                    {playerHasPoints && hasAnyPoints && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`
+                          mb-2 px-3 py-1 rounded text-xs font-mono font-bold
+                          ${actualRank === 1 ? 'bg-primary text-background' : 
+                            actualRank === 2 ? 'bg-muted text-foreground' : 
+                            'bg-secondary text-background'}
+                        `}
+                      >
+                        <div className="flex items-center gap-1">
+                          <Trophy className="w-3 h-3" />
+                          {getPlaceLabel(actualRank)}
+                        </div>
+                      </motion.div>
+                    )}
+
                     {/* Icon */}
                     <div className="mb-3">
-                      {getRankIcon(actualRank)}
+                      {getRankIcon(actualRank, playerHasPoints)}
                     </div>
                     
                     {/* Avatar */}
                     <div className={`
                       ${avatarSize} rounded-full overflow-hidden border-2 mb-3
-                      ${actualRank === 1 ? 'border-primary shadow-[0_0_25px_hsl(var(--primary)/0.6)]' : 
+                      ${playerHasPoints && hasAnyPoints ? (
+                        actualRank === 1 ? 'border-primary shadow-[0_0_25px_hsl(var(--primary)/0.6)]' : 
                         actualRank === 2 ? 'border-muted shadow-[0_0_15px_hsl(var(--muted)/0.4)]' : 
-                        'border-secondary shadow-[0_0_15px_hsl(var(--secondary)/0.4)]'}
+                        'border-secondary shadow-[0_0_15px_hsl(var(--secondary)/0.4)]'
+                      ) : 'border-border'}
                     `}>
                       {player.avatar_url ? (
                         <img 
@@ -338,12 +385,16 @@ export default function Scoreboard() {
                     
                     {/* Name */}
                     <span 
-                      className={`font-mono font-bold text-center ${actualRank === 1 ? 'text-xl text-primary' : 'text-lg text-foreground'}`}
+                      className={`font-mono font-bold text-center ${
+                        playerHasPoints && hasAnyPoints && actualRank === 1 ? 'text-xl text-primary' : 'text-lg text-foreground'
+                      }`}
                       dangerouslySetInnerHTML={{ __html: sanitizedName }}
                     />
                     
                     {/* Points */}
-                    <div className={`font-bold font-mono ${actualRank === 1 ? 'text-2xl text-primary' : 'text-xl text-foreground'} mt-1`}>
+                    <div className={`font-bold font-mono ${
+                      playerHasPoints && hasAnyPoints && actualRank === 1 ? 'text-2xl text-primary' : 'text-xl text-foreground'
+                    } mt-1`}>
                       {player.total_points.toLocaleString()}
                     </div>
                     <div className="text-xs text-muted-foreground font-mono">POINTS</div>
@@ -354,17 +405,6 @@ export default function Scoreboard() {
                         🩸 ×{player.first_bloods}
                       </span>
                     )}
-                    
-                    {/* Badge */}
-                    <motion.div 
-                      className={`mt-2 text-background font-mono px-2 py-0.5 rounded text-xs
-                        ${actualRank === 1 ? 'bg-primary' : 'bg-muted'}
-                      `}
-                      animate={{ scale: [1, 1.05, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    >
-                      {actualRank === 1 ? '👑 LEAD' : actualRank === 2 ? 'SENIOR' : 'AGENT'}
-                    </motion.div>
                   </motion.div>
                 );
               })}
@@ -402,7 +442,7 @@ export default function Scoreboard() {
                 transition={{ duration: 0.3 }}
                 className={`
                   relative flex items-center gap-6 p-4 mb-3 border rounded
-                  ${getRowStyle(rank)}
+                  ${getRowStyle(rank, player.total_points > 0)}
                   ${isRankingUp ? 'ring-2 ring-primary/50' : ''}
                   transition-all duration-300
                 `}
@@ -471,22 +511,25 @@ export default function Scoreboard() {
           })}
         </AnimatePresence>
 
-        {/* Buffer for looping scroll */}
-        <div className="h-32" />
+        {individual.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-muted-foreground font-mono text-lg">NO AGENTS REGISTERED</p>
+          </div>
+        )}
       </div>
-
-      {/* Bottom gradient */}
-      <div className="fixed bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none" />
 
       {/* Footer signature */}
-      <div className="fixed bottom-4 left-0 right-0 text-center text-xs text-muted-foreground font-mono opacity-50">
-        CASE #2025 // LEAD INVESTIGATOR: 0xfsl (Faisal AL-Jaber)
+      <div className="fixed bottom-4 left-0 right-0 text-center">
+        <p className="text-xs text-muted-foreground/50 font-mono">
+          CASE #2025 // LEAD INVESTIGATOR: 0xfsl (Faisal AL-Jaber)
+        </p>
       </div>
 
+      {/* Rain animation keyframes */}
       <style>{`
         @keyframes rain {
-          from { transform: translateY(0); }
-          to { transform: translateY(4px); }
+          0% { background-position: 0 0; }
+          100% { background-position: 0 20px; }
         }
       `}</style>
     </div>
