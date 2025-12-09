@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { Session, User } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
 interface Profile {
   id: string;
@@ -21,13 +21,7 @@ interface AuthContextType {
   isAdmin: boolean;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ data: any; error: any }>;
-  signUp: (
-    email: string,
-    password: string,
-    username: string,
-    fullName?: string,
-    universityId?: string,
-  ) => Promise<{ data: any; error: any }>;
+  signUp: (email: string, password: string, username: string, fullName?: string, universityId?: string) => Promise<{ data: any; error: any }>;
   signInWithGoogle: () => Promise<{ data: any; error: any }>;
   signOut: () => Promise<{ error: any }>;
   updateProfile: (updates: Partial<Profile>) => Promise<{ data: any; error: any }>;
@@ -47,15 +41,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const [profileResult, roleResult] = await Promise.all([
         supabase
-          .from("profiles")
-          .select("id, username, avatar_url, team_id, is_banned, is_locked, created_at, full_name, university_id")
-          .eq("id", userId)
+          .from('profiles')
+          .select('id, username, avatar_url, team_id, is_banned, is_locked, created_at, full_name, university_id')
+          .eq('id', userId)
           .maybeSingle(),
-        supabase.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle(),
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+          .eq('role', 'admin')
+          .maybeSingle()
       ]);
 
       if (profileResult.data) setProfile(profileResult.data as Profile);
-      setIsAdmin(roleResult.data?.role === "admin");
+      setIsAdmin(roleResult.data?.role === 'admin');
     } catch (error) {
       console.error("Profile fetch error:", error);
     }
@@ -70,49 +69,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
-
+    
     // Timeout to prevent infinite loading state
     const loadingTimeout = setTimeout(() => {
       if (isMounted && isLoading) {
-        console.warn("AuthProvider: Loading timed out, forcing completion");
+        console.warn('AuthProvider: Loading timed out, forcing completion');
         setIsLoading(false);
       }
     }, 8000);
 
     // 1. Check active session on mount
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }) => {
-        if (!isMounted) return;
-
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          fetchUserData(session.user.id).finally(() => {
-            if (isMounted) setIsLoading(false);
-          });
-        } else {
-          setIsLoading(false);
-        }
-      })
-      .catch((error) => {
-        console.error("Error getting session:", error);
-        if (isMounted) setIsLoading(false);
-      });
-
-    // 2. Listen for auth state changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (!isMounted) return;
-
+      
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        fetchUserData(session.user.id).finally(() => {
+          if (isMounted) setIsLoading(false);
+        });
+      } else {
+        setIsLoading(false);
+      }
+    }).catch((error) => {
+      console.error('Error getting session:', error);
+      if (isMounted) setIsLoading(false);
+    });
 
+    // 2. Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!isMounted) return;
+      
+      setSession(session);
+      setUser(session?.user ?? null);
+      
       if (session?.user) {
         // Short delay on sign in to allow DB triggers to create profile
-        if (event === "SIGNED_IN") {
+        if (event === 'SIGNED_IN') {
           setTimeout(() => {
             if (isMounted) {
               fetchUserData(session.user.id).finally(() => setIsLoading(false));
@@ -143,19 +137,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (
-    email: string,
-    password: string,
+    email: string, 
+    password: string, 
     username: string,
     fullName?: string,
-    universityId?: string,
+    universityId?: string
   ) => {
-    const result = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
+    const result = await supabase.auth.signUp({ 
+      email, 
+      password, 
+      options: { 
         data: { username, full_name: fullName, university_id: universityId },
-        emailRedirectTo: `${window.location.origin}/challenges`,
-      },
+        emailRedirectTo: `${window.location.origin}/challenges`
+      } 
     });
 
     // If signup successful and we have full_name/university_id, update the profile
@@ -163,12 +157,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Wait a bit for the trigger to create the profile first
       setTimeout(async () => {
         await supabase
-          .from("profiles")
-          .update({
-            full_name: fullName || null,
-            university_id: universityId || null,
+          .from('profiles')
+          .update({ 
+            full_name: fullName || null, 
+            university_id: universityId || null 
           })
-          .eq("id", result.data.user!.id);
+          .eq('id', result.data.user!.id);
       }, 1000);
     }
 
@@ -176,11 +170,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    return supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/challenges`,
-      },
+    return supabase.auth.signInWithOAuth({ 
+      provider: 'google', 
+      options: { 
+        redirectTo: `${window.location.origin}/challenges` 
+      } 
     });
   };
 
@@ -191,14 +185,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
-    if (!user) return { data: null, error: new Error("No user") };
+    if (!user) return { data: null, error: new Error('No user') };
     const result = await supabase
-      .from("profiles")
+      .from('profiles')
       .update(updates)
-      .eq("id", user.id)
-      .select("id, username, avatar_url, team_id, is_banned, is_locked, created_at, full_name, university_id")
+      .eq('id', user.id)
+      .select('id, username, avatar_url, team_id, is_banned, is_locked, created_at, full_name, university_id')
       .single();
-
+    
     if (result.data) {
       setProfile(result.data as Profile);
     }
@@ -206,20 +200,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        profile,
-        isAdmin,
-        isLoading,
-        signIn,
-        signUp,
-        signInWithGoogle,
-        signOut,
-        updateProfile,
-      }}
-    >
+    <AuthContext.Provider value={{ 
+      user, 
+      session, 
+      profile, 
+      isAdmin, 
+      isLoading, 
+      signIn, 
+      signUp, 
+      signInWithGoogle, 
+      signOut, 
+      updateProfile 
+    }}>
       {children}
     </AuthContext.Provider>
   );
@@ -228,7 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }

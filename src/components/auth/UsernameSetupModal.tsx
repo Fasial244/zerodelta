@@ -1,29 +1,32 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
-import { User } from "lucide-react";
-import { z } from "zod";
+import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { User } from 'lucide-react';
+import { z } from 'zod';
 
 const usernameSchema = z
   .string()
   .trim()
-  .min(3, "Username must be at least 3 characters")
-  .max(32, "Username too long")
-  .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens");
+  .min(3, 'Username must be at least 3 characters')
+  .max(32, 'Username too long')
+  .regex(
+    /^[a-zA-Z0-9_-]+$/,
+    'Username can only contain letters, numbers, underscores, and hyphens'
+  );
 
 interface UsernameSetupModalProps {
   onComplete: () => void;
 }
 
 export function UsernameSetupModal({ onComplete }: UsernameSetupModalProps) {
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
+  
   const { updateProfile } = useAuth();
   const { toast } = useToast();
 
@@ -41,18 +44,18 @@ export function UsernameSetupModal({ onComplete }: UsernameSetupModalProps) {
     try {
       const { error: updateError } = await updateProfile({ username: username.trim() });
       if (updateError) throw updateError;
-
+      
       toast({
-        title: "Username set!",
-        description: "Your profile has been updated.",
+        title: 'Username set!',
+        description: 'Your profile has been updated.',
       });
       onComplete();
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to update username";
+      const errorMessage = err instanceof Error ? err.message : 'Failed to update username';
       toast({
-        title: "Error",
+        title: 'Error',
         description: errorMessage,
-        variant: "destructive",
+        variant: 'destructive',
       });
     } finally {
       setIsLoading(false);
@@ -61,14 +64,20 @@ export function UsernameSetupModal({ onComplete }: UsernameSetupModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-md">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="w-full max-w-md"
+      >
         <div className="border-gradient p-[2px] rounded-lg">
           <div className="bg-card rounded-lg p-8">
             <div className="flex items-center justify-center mb-6">
               <User className="h-12 w-12 text-primary animate-pulse-glow" />
             </div>
 
-            <h2 className="text-2xl font-bold text-center mb-2 text-glow-cyan">SET YOUR CALLSIGN</h2>
+            <h2 className="text-2xl font-bold text-center mb-2 text-glow-cyan">
+              SET YOUR CALLSIGN
+            </h2>
 
             <p className="text-muted-foreground text-center mb-6 font-mono text-sm">
               Choose a username for the leaderboard
@@ -90,7 +99,7 @@ export function UsernameSetupModal({ onComplete }: UsernameSetupModalProps) {
                   }}
                   placeholder="ghost_hacker"
                   className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${
-                    error ? "border-destructive" : ""
+                    error ? 'border-destructive' : ''
                   }`}
                   autoFocus
                   maxLength={32}
@@ -103,7 +112,11 @@ export function UsernameSetupModal({ onComplete }: UsernameSetupModalProps) {
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-mono"
                 disabled={isLoading}
               >
-                {isLoading ? <span className="animate-pulse">SAVING...</span> : "CONFIRM USERNAME"}
+                {isLoading ? (
+                  <span className="animate-pulse">SAVING...</span>
+                ) : (
+                  'CONFIRM USERNAME'
+                )}
               </Button>
             </form>
           </div>
