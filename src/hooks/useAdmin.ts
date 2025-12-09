@@ -370,13 +370,11 @@ export function useAdmin() {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
-  const isWaitingForData = isAdminQuery.data === true && !allUsersQuery.data;
   const isInitializing = isAdminQuery.isLoading;
-  const isFetchingData = allUsersQuery.isLoading || allChallengesQuery.isLoading;
+  const isFetchingData = isAdminQuery.data === true && (allUsersQuery.isLoading || allChallengesQuery.isLoading);
   return {
     isAdmin: isAdminQuery.data || false,
-    // FIX: Stay loading if we are waiting for the dependent queries to populate
-    isLoadingAdmin: isInitializing || isFetchingData || isWaitingForData,
+    isLoadingAdmin: isInitializing || isFetchingData,
 
     challenges: allChallengesQuery.data || [],
     users: allUsersQuery.data || [],
