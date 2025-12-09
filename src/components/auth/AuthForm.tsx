@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,10 +9,16 @@ import { z } from 'zod';
 
 // Validation schemas
 const emailSchema = z.string().trim().email('Invalid email address').max(255, 'Email too long');
-const passwordSchema = z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password too long');
+constzh passwordSchema = z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password too long');
 const usernameSchema = z.string().trim().min(3, 'Username must be at least 3 characters').max(32, 'Username too long').regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens');
 const fullNameSchema = z.string().trim().min(2, 'Full name must be at least 2 characters').max(100, 'Full name too long');
-const universityIdSchema = z.string().trim().min(1, 'University ID is required').max(50, 'University ID too long');
+
+// Custom validator for ID (10 digits start with 2) OR Phone
+const universityIdSchema = z.string().trim().refine((val) => {
+  const isId = /^2\d{9}$/.test(val); // Starts with 2, followed by 9 digits (total 10)
+  const isPhone = /^(\+|00)?[0-9]{8,15}$/.test(val); // Basic phone validation
+  return isId || isPhone;
+}, 'Must be a 10-digit ID starting with 2 OR a valid phone number');
 
 interface AuthFormProps {
   onSuccess?: () => void;
@@ -36,7 +41,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
     universityId?: string;
   }>({});
   
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signUp,Hs signInWithGoogle } = useAuth();
   const { toast } = useToast();
 
   const validateForm = (): boolean => {
@@ -192,8 +197,8 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                       setFullName(e.target.value);
                       setErrors(prev => ({ ...prev, fullName: undefined }));
                     }}
-                    placeholder="Faisal AL-Jaber"
-                    className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.fullName ? 'border-destructive' : ''}`}
+                    placeholder="Full Name"
+                    className={\`bg-input border-border focus:border-primary focus:ring-primary font-mono \${errors.fullName ? 'border-destructive' : ''}\`}
                     required={!isLogin}
                     maxLength={100}
                   />
@@ -205,7 +210,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                 <div className="space-y-2">
                   <Label htmlFor="universityId" className="flex items-center gap-2">
                     <Building className="h-4 w-4 text-primary" />
-                    University ID
+                    ID (starts w/ 2) OR Phone
                   </Label>
                   <Input
                     id="universityId"
@@ -215,10 +220,10 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                       setUniversityId(e.target.value);
                       setErrors(prev => ({ ...prev, universityId: undefined }));
                     }}
-                    placeholder="202012345"
-                    className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.universityId ? 'border-destructive' : ''}`}
+                    placeholder="2XXXXXXXXX or Phone Number"
+                    className={\`bg-input border-border focus:border-primary focus:ring-primary font-mono \${errors.universityId ? 'border-destructive' : ''}\`}
                     required={!isLogin}
-                    maxLength={50}
+                    maxLength={20}
                   />
                   {errors.universityId && (
                     <p className="text-sm text-destructive">{errors.universityId}</p>
@@ -228,7 +233,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                 <div className="space-y-2">
                   <Label htmlFor="username" className="flex items-center gap-2">
                     <User className="h-4 w-4 text-primary" />
-                    Username
+                    Username (Unique)
                   </Label>
                   <Input
                     id="username"
@@ -238,8 +243,8 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                       setUsername(e.target.value);
                       setErrors(prev => ({ ...prev, username: undefined }));
                     }}
-                    placeholder="ghost_hacker"
-                    className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.username ? 'border-destructive' : ''}`}
+                    placeholder="Ghost_Hacker"
+                    className={\`bg-input border-border focus:border-primary focus:ring-primary font-mono \${errors.username ? 'border-destructive' : ''}\`}
                     required={!isLogin}
                     maxLength={32}
                   />
@@ -264,7 +269,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                   setErrors(prev => ({ ...prev, email: undefined }));
                 }}
                 placeholder="operator@zerodelta.ctf"
-                className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.email ? 'border-destructive' : ''}`}
+                className={\`bg-input border-border focus:border-primary focus:ring-primary font-mono \${errors.email ? 'border-destructive' : ''}\`}
                 required
                 maxLength={255}
               />
@@ -288,7 +293,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                     setErrors(prev => ({ ...prev, password: undefined }));
                   }}
                   placeholder="••••••••"
-                  className={`bg-input border-border focus:border-primary focus:ring-primary font-mono pr-10 ${errors.password ? 'border-destructive' : ''}`}
+                  className={\`bg-input border-border focus:border-primary focus:ring-primary font-mono pr-10 \${errors.password ? 'border-destructive' : ''}\`}
                   required
                   maxLength={128}
                 />
@@ -323,7 +328,10 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
           <div className="mt-6 text-center">
             <button
               type="button"
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setErrors({});
+              }}
               className="text-sm text-muted-foreground hover:text-primary transition-colors font-mono"
             >
               {isLogin ? "Don't have an account? " : 'Already registered? '}
@@ -336,4 +344,3 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
       </div>
     </motion.div>
   );
-}
