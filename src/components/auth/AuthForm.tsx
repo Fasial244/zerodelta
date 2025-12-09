@@ -1,24 +1,28 @@
-import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/hooks/useAuth';
-import { Shield, User, Mail, Lock, Eye, EyeOff, Building, BadgeCheck } from 'lucide-react';
-import { z } from 'zod';
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { Shield, User, Mail, Lock, Eye, EyeOff, Building, BadgeCheck } from "lucide-react";
+import { z } from "zod";
 
 // Validation schemas
-const emailSchema = z.string().trim().email('Invalid email address').max(255, 'Email too long');
-constzh passwordSchema = z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password too long');
-const usernameSchema = z.string().trim().min(3, 'Username must be at least 3 characters').max(32, 'Username too long').regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens');
-const fullNameSchema = z.string().trim().min(2, 'Full name must be at least 2 characters').max(100, 'Full name too long');
-
-// Custom validator for ID (10 digits start with 2) OR Phone
-const universityIdSchema = z.string().trim().refine((val) => {
-  const isId = /^2\d{9}$/.test(val); // Starts with 2, followed by 9 digits (total 10)
-  const isPhone = /^(\+|00)?[0-9]{8,15}$/.test(val); // Basic phone validation
-  return isId || isPhone;
-}, 'Must be a 10-digit ID starting with 2 OR a valid phone number');
+const emailSchema = z.string().trim().email("Invalid email address").max(255, "Email too long");
+const passwordSchema = z.string().min(8, "Password must be at least 8 characters").max(128, "Password too long");
+const usernameSchema = z
+  .string()
+  .trim()
+  .min(3, "Username must be at least 3 characters")
+  .max(32, "Username too long")
+  .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens");
+const fullNameSchema = z
+  .string()
+  .trim()
+  .min(2, "Full name must be at least 2 characters")
+  .max(100, "Full name too long");
+const universityIdSchema = z.string().trim().min(1, "University ID is required").max(50, "University ID too long");
 
 interface AuthFormProps {
   onSuccess?: () => void;
@@ -26,37 +30,37 @@ interface AuthFormProps {
 
 export function AuthForm({ onSuccess }: AuthFormProps) {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [universityId, setUniversityId] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [universityId, setUniversityId] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{ 
-    email?: string; 
-    password?: string; 
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
     username?: string;
     fullName?: string;
     universityId?: string;
   }>({});
-  
-  const { signIn, signUp,Hs signInWithGoogle } = useAuth();
+
+  const { signIn, signUp, signInWithGoogle } = useAuth();
   const { toast } = useToast();
 
   const validateForm = (): boolean => {
     const newErrors: typeof errors = {};
-    
+
     const emailResult = emailSchema.safeParse(email);
     if (!emailResult.success) {
       newErrors.email = emailResult.error.errors[0].message;
     }
-    
+
     const passwordResult = passwordSchema.safeParse(password);
     if (!passwordResult.success) {
       newErrors.password = passwordResult.error.errors[0].message;
     }
-    
+
     if (!isLogin) {
       const usernameResult = usernameSchema.safeParse(username);
       if (!usernameResult.success) {
@@ -73,40 +77,34 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
         newErrors.universityId = universityIdResult.error.errors[0].message;
       }
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
-    
+
     setIsLoading(true);
 
     try {
       if (isLogin) {
         const { error } = await signIn(email.trim(), password);
         if (error) throw error;
-        toast({ title: 'Welcome back!', description: 'Successfully logged in.' });
+        toast({ title: "Welcome back!", description: "Successfully logged in." });
       } else {
-        const { error } = await signUp(
-          email.trim(), 
-          password, 
-          username.trim(),
-          fullName.trim(),
-          universityId.trim()
-        );
+        const { error } = await signUp(email.trim(), password, username.trim(), fullName.trim(), universityId.trim());
         if (error) throw error;
-        toast({ title: 'Account created!', description: 'You can now log in.' });
+        toast({ title: "Account created!", description: "You can now log in." });
       }
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
+      const errorMessage = error instanceof Error ? error.message : "Authentication failed";
       toast({
-        title: 'Error',
+        title: "Error",
         description: errorMessage,
-        variant: 'destructive',
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -114,23 +112,19 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="w-full max-w-md mx-auto"
-    >
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md mx-auto">
       <div className="border-gradient p-[2px] rounded-lg">
         <div className="bg-card rounded-lg p-8">
           <div className="flex items-center justify-center mb-6">
             <Shield className="h-12 w-12 text-primary animate-pulse-glow" />
           </div>
-          
+
           <h2 className="text-2xl font-bold text-center mb-2 text-glow-cyan">
-            {isLogin ? 'ACCESS TERMINAL' : 'REGISTER NODE'}
+            {isLogin ? "ACCESS TERMINAL" : "REGISTER NODE"}
           </h2>
-          
+
           <p className="text-muted-foreground text-center mb-6 font-mono text-sm">
-            {isLogin ? 'Enter credentials to proceed' : 'Create your operator profile'}
+            {isLogin ? "Enter credentials to proceed" : "Create your operator profile"}
           </p>
 
           {/* Google Sign In Button */}
@@ -142,9 +136,9 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
               const { error } = await signInWithGoogle();
               if (error) {
                 toast({
-                  title: 'Error',
+                  title: "Error",
                   description: error.message,
-                  variant: 'destructive',
+                  variant: "destructive",
                 });
               }
             }}
@@ -175,9 +169,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
               <span className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground font-mono">
-                Or continue with email
-              </span>
+              <span className="bg-card px-2 text-muted-foreground font-mono">Or continue with email</span>
             </div>
           </div>
 
@@ -195,22 +187,20 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                     value={fullName}
                     onChange={(e) => {
                       setFullName(e.target.value);
-                      setErrors(prev => ({ ...prev, fullName: undefined }));
+                      setErrors((prev) => ({ ...prev, fullName: undefined }));
                     }}
-                    placeholder="Full Name"
-                    className={\`bg-input border-border focus:border-primary focus:ring-primary font-mono \${errors.fullName ? 'border-destructive' : ''}\`}
+                    placeholder="Faisal AL-Jaber"
+                    className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.fullName ? "border-destructive" : ""}`}
                     required={!isLogin}
                     maxLength={100}
                   />
-                  {errors.fullName && (
-                    <p className="text-sm text-destructive">{errors.fullName}</p>
-                  )}
+                  {errors.fullName && <p className="text-sm text-destructive">{errors.fullName}</p>}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="universityId" className="flex items-center gap-2">
                     <Building className="h-4 w-4 text-primary" />
-                    ID (starts w/ 2) OR Phone
+                    University ID
                   </Label>
                   <Input
                     id="universityId"
@@ -218,22 +208,20 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                     value={universityId}
                     onChange={(e) => {
                       setUniversityId(e.target.value);
-                      setErrors(prev => ({ ...prev, universityId: undefined }));
+                      setErrors((prev) => ({ ...prev, universityId: undefined }));
                     }}
-                    placeholder="2XXXXXXXXX or Phone Number"
-                    className={\`bg-input border-border focus:border-primary focus:ring-primary font-mono \${errors.universityId ? 'border-destructive' : ''}\`}
+                    placeholder="202012345"
+                    className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.universityId ? "border-destructive" : ""}`}
                     required={!isLogin}
-                    maxLength={20}
+                    maxLength={50}
                   />
-                  {errors.universityId && (
-                    <p className="text-sm text-destructive">{errors.universityId}</p>
-                  )}
+                  {errors.universityId && <p className="text-sm text-destructive">{errors.universityId}</p>}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="username" className="flex items-center gap-2">
                     <User className="h-4 w-4 text-primary" />
-                    Username (Unique)
+                    Username
                   </Label>
                   <Input
                     id="username"
@@ -241,16 +229,14 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                     value={username}
                     onChange={(e) => {
                       setUsername(e.target.value);
-                      setErrors(prev => ({ ...prev, username: undefined }));
+                      setErrors((prev) => ({ ...prev, username: undefined }));
                     }}
-                    placeholder="Ghost_Hacker"
-                    className={\`bg-input border-border focus:border-primary focus:ring-primary font-mono \${errors.username ? 'border-destructive' : ''}\`}
+                    placeholder="ghost_hacker"
+                    className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.username ? "border-destructive" : ""}`}
                     required={!isLogin}
                     maxLength={32}
                   />
-                  {errors.username && (
-                    <p className="text-sm text-destructive">{errors.username}</p>
-                  )}
+                  {errors.username && <p className="text-sm text-destructive">{errors.username}</p>}
                 </div>
               </>
             )}
@@ -266,16 +252,14 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
-                  setErrors(prev => ({ ...prev, email: undefined }));
+                  setErrors((prev) => ({ ...prev, email: undefined }));
                 }}
                 placeholder="operator@zerodelta.ctf"
-                className={\`bg-input border-border focus:border-primary focus:ring-primary font-mono \${errors.email ? 'border-destructive' : ''}\`}
+                className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.email ? "border-destructive" : ""}`}
                 required
                 maxLength={255}
               />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email}</p>
-              )}
+              {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
             </div>
 
             <div className="space-y-2">
@@ -286,14 +270,14 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
               <div className="relative">
                 <Input
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);
-                    setErrors(prev => ({ ...prev, password: undefined }));
+                    setErrors((prev) => ({ ...prev, password: undefined }));
                   }}
                   placeholder="••••••••"
-                  className={\`bg-input border-border focus:border-primary focus:ring-primary font-mono pr-10 \${errors.password ? 'border-destructive' : ''}\`}
+                  className={`bg-input border-border focus:border-primary focus:ring-primary font-mono pr-10 ${errors.password ? "border-destructive" : ""}`}
                   required
                   maxLength={128}
                 />
@@ -305,9 +289,7 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password}</p>
-              )}
+              {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
             </div>
 
             <Button
@@ -315,32 +297,22 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
               className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-mono"
               disabled={isLoading}
             >
-              {isLoading ? (
-                <span className="animate-pulse">PROCESSING...</span>
-              ) : isLogin ? (
-                'LOGIN'
-              ) : (
-                'REGISTER'
-              )}
+              {isLoading ? <span className="animate-pulse">PROCESSING...</span> : isLogin ? "LOGIN" : "REGISTER"}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
             <button
               type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setErrors({});
-              }}
+              onClick={() => setIsLogin(!isLogin)}
               className="text-sm text-muted-foreground hover:text-primary transition-colors font-mono"
             >
-              {isLogin ? "Don't have an account? " : 'Already registered? '}
-              <span className="text-primary underline">
-                {isLogin ? 'Register' : 'Login'}
-              </span>
+              {isLogin ? "Don't have an account? " : "Already registered? "}
+              <span className="text-primary underline">{isLogin ? "Register" : "Login"}</span>
             </button>
           </div>
         </div>
       </div>
     </motion.div>
   );
+}
