@@ -83,7 +83,7 @@ export default function Index() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="max-w-lg mx-auto mb-8"
+              className="w-full max-w-lg mx-auto mb-8 px-2"
             >
               <PublicEventCountdown
                 competitionName={activeCompetition.name}
