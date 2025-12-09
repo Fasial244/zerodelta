@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface SystemSettings {
@@ -16,53 +17,49 @@ export interface SystemSettings {
 
 type GameState = 'before_start' | 'active' | 'ended' | 'paused';
 
+const parseSettings = (data: Array<{ key: string; value: string }> | null): SystemSettings => {
+  const settingsMap: Record<string, string> = {};
+  data?.forEach(row => {
+    settingsMap[row.key] = row.value;
+  });
+
+  return {
+    game_paused: settingsMap.game_paused === 'true',
+    game_start_time: new Date(settingsMap.game_start_time || '2024-01-01T00:00:00Z'),
+    game_end_time: new Date(settingsMap.game_end_time || '2024-12-31T23:59:59Z'),
+    decay_rate: parseFloat(settingsMap.decay_rate || '0.5'),
+    decay_factor: parseFloat(settingsMap.decay_factor || '10'),
+    min_points: parseInt(settingsMap.min_points || '50'),
+    event_title: settingsMap.event_title || 'ZeroDelta',
+    flag_salt: settingsMap.flag_salt || '',
+    honeypot_hash: settingsMap.honeypot_hash || '',
+    instance_reset_interval: parseInt(settingsMap.instance_reset_interval || '15'),
+  };
+};
+
+const fetchSystemSettings = async (): Promise<SystemSettings> => {
+  const { data, error } = await supabase
+    .from('system_settings')
+    .select('key, value');
+
+  if (error) throw error;
+  return parseSettings(data);
+};
+
 export function useSystemSettings() {
-  const [settings, setSettings] = useState<SystemSettings | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [gameState, setGameState] = useState<GameState>('before_start');
   const [countdown, setCountdown] = useState<string>('');
 
-  const parseSettings = useCallback((data: Array<{ key: string; value: string }>) => {
-    const settingsMap: Record<string, string> = {};
-    data?.forEach(row => {
-      settingsMap[row.key] = row.value;
-    });
+  const { data: settings, isLoading, refetch } = useQuery({
+    queryKey: ['system-settings'],
+    queryFn: fetchSystemSettings,
+    staleTime: 60000, // Cache for 1 minute to prevent duplicate requests
+    gcTime: 300000, // Keep in cache for 5 minutes
+  });
 
-    return {
-      game_paused: settingsMap.game_paused === 'true',
-      game_start_time: new Date(settingsMap.game_start_time || '2024-01-01T00:00:00Z'),
-      game_end_time: new Date(settingsMap.game_end_time || '2024-12-31T23:59:59Z'),
-      decay_rate: parseFloat(settingsMap.decay_rate || '0.5'),
-      decay_factor: parseFloat(settingsMap.decay_factor || '10'),
-      min_points: parseInt(settingsMap.min_points || '50'),
-      event_title: settingsMap.event_title || 'ZeroDelta',
-      flag_salt: settingsMap.flag_salt || '',
-      honeypot_hash: settingsMap.honeypot_hash || '',
-      instance_reset_interval: parseInt(settingsMap.instance_reset_interval || '15'),
-    };
-  }, []);
-
-  const fetchSettings = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('system_settings')
-        .select('key, value');
-
-      if (error) throw error;
-
-      setSettings(parseSettings(data || []));
-    } catch (error) {
-      console.error('Error fetching settings:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [parseSettings]);
-
-  // Initial fetch and realtime subscription
+  // Subscribe to realtime changes
   useEffect(() => {
-    fetchSettings();
-
-    // Subscribe to realtime changes on system_settings
     const channel = supabase
       .channel('system-settings-changes')
       .on(
@@ -72,10 +69,9 @@ export function useSystemSettings() {
           schema: 'public',
           table: 'system_settings'
         },
-        (payload) => {
-          console.log('System settings changed:', payload);
-          // Refetch all settings when any change occurs
-          fetchSettings();
+        () => {
+          // Invalidate cache to trigger refetch
+          queryClient.invalidateQueries({ queryKey: ['system-settings'] });
         }
       )
       .subscribe();
@@ -83,7 +79,7 @@ export function useSystemSettings() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchSettings]);
+  }, [queryClient]);
 
   // Update game state based on settings
   useEffect(() => {
@@ -127,20 +123,20 @@ export function useSystemSettings() {
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   }
 
-  function calculateDynamicPoints(basePoints: number, solveCount: number): number {
+  const calculateDynamicPoints = useCallback((basePoints: number, solveCount: number): number => {
     if (!settings) return basePoints;
     
     const { decay_rate, decay_factor, min_points } = settings;
     const points = Math.floor(basePoints * Math.pow(decay_rate, solveCount / decay_factor));
     return Math.max(min_points, points);
-  }
+  }, [settings]);
 
   return {
-    settings,
+    settings: settings ?? null,
     isLoading,
     gameState,
     countdown,
     calculateDynamicPoints,
-    refetch: fetchSettings,
+    refetch,
   };
 }
