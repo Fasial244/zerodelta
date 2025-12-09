@@ -3,6 +3,8 @@ import { Layout } from '@/components/layout/Layout';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useTeam } from '@/hooks/useTeam';
+import { useCompetitions } from '@/hooks/useCompetitions';
+import { useLeaderboard } from '@/hooks/useLeaderboard';
 import { Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -16,6 +18,8 @@ import {
   Copy,
   Check,
   Loader2,
+  Calendar,
+  Award,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -30,11 +34,17 @@ export default function Profile() {
   const { user, profile, isLoading: authLoading, updateProfile } = useAuth();
   const { stats, solveHistory, isLoading: profileLoading } = useProfile();
   const { team, isLoading: teamLoading, isLocked } = useTeam();
+  const { activeCompetition, userRegistration } = useCompetitions();
+  const { individual } = useLeaderboard();
   const [isEditing, setIsEditing] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
+
+  // Calculate competition-specific rank
+  const competitionRank = individual.findIndex(p => p.id === user?.id) + 1;
+  const competitionStats = individual.find(p => p.id === user?.id);
 
   if (authLoading) {
     return (
@@ -234,7 +244,62 @@ export default function Profile() {
             transition={{ delay: 0.2 }}
             className="md:col-span-2 space-y-6"
           >
-            {/* Stats Grid */}
+            {/* Competition Stats Section */}
+            {activeCompetition && (
+              <Card className="border-primary/30 bg-card">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-mono flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-primary" />
+                    {activeCompetition.name}
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    {userRegistration?.status === 'approved' ? (
+                      <Badge variant="outline" className="text-accent border-accent">REGISTERED</Badge>
+                    ) : userRegistration?.status === 'pending' ? (
+                      <Badge variant="outline" className="text-warning border-warning">PENDING APPROVAL</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-muted-foreground">NOT REGISTERED</Badge>
+                    )}
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  {userRegistration?.status === 'approved' ? (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <StatCard
+                        icon={Medal}
+                        label="Event Rank"
+                        value={competitionRank > 0 ? `#${competitionRank}` : '--'}
+                        color="text-warning"
+                      />
+                      <StatCard
+                        icon={Trophy}
+                        label="Event Points"
+                        value={competitionStats?.total_points || 0}
+                        color="text-accent"
+                      />
+                      <StatCard
+                        icon={Target}
+                        label="Event Solves"
+                        value={competitionStats?.solve_count || 0}
+                        color="text-primary"
+                      />
+                      <StatCard
+                        icon={Droplets}
+                        label="First Bloods"
+                        value={competitionStats?.first_bloods || 0}
+                        color="text-destructive"
+                      />
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground font-mono text-sm">
+                      {userRegistration ? 'Waiting for admin approval...' : 'Register to participate in this event'}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Overall Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatCard
                 icon={Trophy}
@@ -255,8 +320,8 @@ export default function Profile() {
                 color="text-destructive"
               />
               <StatCard
-                icon={Medal}
-                label="Rank"
+                icon={Award}
+                label="Overall Rank"
                 value={stats?.rank ? `#${stats.rank}` : '--'}
                 color="text-warning"
               />

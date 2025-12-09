@@ -3,12 +3,14 @@ import { Layout } from '@/components/layout/Layout';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useSystemSettings } from '@/hooks/useSystemSettings';
+import { useCompetitions } from '@/hooks/useCompetitions';
 import { Link } from 'react-router-dom';
-import { Shield, Target, Trophy, Users, Zap, Terminal } from 'lucide-react';
+import { Shield, Target, Trophy, Users, Zap, Terminal, Calendar, AlertTriangle } from 'lucide-react';
 
 export default function Index() {
   const { user } = useAuth();
   const { settings, gameState, countdown } = useSystemSettings();
+  const { activeCompetition, userRegistration } = useCompetitions();
 
   // Determine status display based on game state
   const getStatusDisplay = () => {
@@ -93,6 +95,76 @@ export default function Index() {
               </Button>
             )}
           </div>
+
+          {/* Event Alert for non-registered users */}
+          {activeCompetition && !user && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8 p-4 rounded-lg bg-warning/10 border border-warning/30"
+            >
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-6 h-6 text-warning" />
+                  <div className="text-left">
+                    <p className="font-mono font-bold text-warning">{activeCompetition.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Sign in to register for this event
+                    </p>
+                  </div>
+                </div>
+                <Button asChild className="font-mono">
+                  <Link to="/auth">
+                    <Terminal className="w-4 h-4 mr-2" />
+                    SIGN IN & REGISTER
+                  </Link>
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Event Alert for logged in but not registered users */}
+          {activeCompetition && user && !userRegistration && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8 p-4 rounded-lg bg-primary/10 border border-primary/30"
+            >
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-6 h-6 text-primary" />
+                  <div className="text-left">
+                    <p className="font-mono font-bold text-primary">{activeCompetition.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      You are not registered for this event yet
+                    </p>
+                  </div>
+                </div>
+                <Button asChild className="font-mono">
+                  <Link to="/challenges">
+                    <Target className="w-4 h-4 mr-2" />
+                    REGISTER NOW
+                  </Link>
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Pending approval alert */}
+          {activeCompetition && userRegistration?.status === 'pending' && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8 p-4 rounded-lg bg-warning/10 border border-warning/30"
+            >
+              <div className="flex items-center gap-3 justify-center">
+                <Calendar className="w-5 h-5 text-warning" />
+                <p className="font-mono text-warning">
+                  Registration pending approval for {activeCompetition.name}
+                </p>
+              </div>
+            </motion.div>
+          )}
 
           {/* CTA Buttons */}
           <div className="flex flex-wrap justify-center gap-4">
