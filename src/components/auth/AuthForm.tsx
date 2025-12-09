@@ -5,15 +5,40 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
-import { Shield, User, Mail, Lock, Eye, EyeOff, Building, BadgeCheck } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Shield, User, Mail, Lock, Eye, EyeOff, Phone, BadgeCheck } from 'lucide-react';
 import { z } from 'zod';
 
-// Validation schemas
+// Enhanced input validation schemas
 const emailSchema = z.string().trim().email('Invalid email address').max(255, 'Email too long');
 const passwordSchema = z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password too long');
-const usernameSchema = z.string().trim().min(3, 'Username must be at least 3 characters').max(32, 'Username too long').regex(/^[a-zA-Z0-9_-]+$/, 'Username can only contain letters, numbers, underscores, and hyphens');
-const fullNameSchema = z.string().trim().min(2, 'Full name must be at least 2 characters').max(100, 'Full name too long');
-const universityIdSchema = z.string().trim().min(1, 'University ID is required').max(50, 'University ID too long');
+
+const usernameSchema = z
+  .string()
+  .trim()
+  .min(3, 'Username must be at least 3 characters')
+  .max(32, 'Username too long')
+  .regex(
+    /^[a-zA-Z0-9_-]+$/,
+    'Username can only contain letters, numbers, underscores, and hyphens'
+  );
+
+const fullNameSchema = z
+  .string()
+  .trim()
+  .min(2, 'Full name must be at least 2 characters')
+  .max(100, 'Full name is too long')
+  .regex(/^[a-zA-Z\s'-]+$/, 'Full name can only contain letters, spaces, hyphens, and apostrophes');
+
+const universityIdSchema = z
+  .string()
+  .trim()
+  .min(10, 'Must be at least 10 digits')
+  .max(15, 'Maximum 15 digits')
+  .regex(
+    /^(2\d{9}|\d{10,15})$/,
+    'Must be a 10-digit ID starting with 2, or a phone number (10-15 digits)'
+  );
 
 interface AuthFormProps {
   onSuccess?: () => void;
@@ -39,7 +64,17 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const { toast } = useToast();
 
-  const validateForm = (): boolean => {
+  // Check username uniqueness before signup
+  const checkUsernameUnique = async (usernameToCheck: string): Promise<boolean> => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('username', usernameToCheck.toLowerCase())
+      .maybeSingle();
+    return !data;
+  };
+
+  const validateForm = async (): Promise<boolean> => {
     const newErrors: typeof errors = {};
     
     const emailResult = emailSchema.safeParse(email);
@@ -56,6 +91,12 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
       const usernameResult = usernameSchema.safeParse(username);
       if (!usernameResult.success) {
         newErrors.username = usernameResult.error.errors[0].message;
+      } else {
+        // Check username uniqueness
+        const isUnique = await checkUsernameUnique(username);
+        if (!isUnique) {
+          newErrors.username = 'Username is already taken';
+        }
       }
 
       const fullNameResult = fullNameSchema.safeParse(fullName);
@@ -73,10 +114,11 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    const isValid = await validateForm();
+    if (!isValid) return;
     
     setIsLoading(true);
 
@@ -204,8 +246,8 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
 
                 <div className="space-y-2">
                   <Label htmlFor="universityId" className="flex items-center gap-2">
-                    <Building className="h-4 w-4 text-primary" />
-                    University ID
+                    <Phone className="h-4 w-4 text-primary" />
+                    University ID / Phone *
                   </Label>
                   <Input
                     id="universityId"
@@ -215,11 +257,14 @@ export function AuthForm({ onSuccess }: AuthFormProps) {
                       setUniversityId(e.target.value);
                       setErrors(prev => ({ ...prev, universityId: undefined }));
                     }}
-                    placeholder="202012345"
+                    placeholder="2123456789 or phone number"
                     className={`bg-input border-border focus:border-primary focus:ring-primary font-mono ${errors.universityId ? 'border-destructive' : ''}`}
                     required={!isLogin}
-                    maxLength={50}
+                    maxLength={15}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    10-digit ID starting with 2, or phone number (10-15 digits)
+                  </p>
                   {errors.universityId && (
                     <p className="text-sm text-destructive">{errors.universityId}</p>
                   )}

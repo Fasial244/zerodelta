@@ -19,7 +19,18 @@ import Scoreboard from "./pages/Scoreboard";
 import NotFound from "./pages/NotFound";
 import { MaintenanceWrapper } from "./components/MaintenanceWrapper";
 
-const queryClient = new QueryClient();
+// React Query setup with enhanced real-time configuration
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 0, // Always consider data stale for real-time freshness
+      refetchOnMount: true, // Always refetch when component mounts
+      refetchOnWindowFocus: true, // Refetch when window regains focus
+      refetchOnReconnect: true, // Refetch when network reconnects
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
