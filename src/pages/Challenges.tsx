@@ -5,7 +5,7 @@ import { ChallengeModal } from '@/components/challenges/ChallengeModal';
 import { MobileChallengeList } from '@/components/challenges/MobileChallengeList';
 import { CountdownOverlay } from '@/components/challenges/CountdownOverlay';
 import { TeamPanel } from '@/components/team/TeamPanel';
-import { UsernameSetupModal } from '@/components/auth/UsernameSetupModal';
+import { ProfileCompletionModal } from '@/components/auth/ProfileCompletionModal';
 import { CompetitionWaitingRoom } from '@/components/competitions/CompetitionWaitingRoom';
 import { useAuth } from '@/hooks/useAuth';
 import { useChallenges, Challenge } from '@/hooks/useChallenges';
@@ -27,8 +27,12 @@ export default function Challenges() {
   const [usernameModalDismissed, setUsernameModalDismissed] = useState(false);
   const [accessGranted, setAccessGranted] = useState(false);
 
-  // Check if user needs to set a username (Google users get auto-generated names like "user_abc123")
-  const needsUsername = profile?.username?.startsWith('user_') && !usernameModalDismissed;
+  // Check if user needs to complete profile (missing required fields or auto-generated username)
+  const needsProfileCompletion = profile && (
+    !profile.full_name || 
+    !profile.university_id || 
+    profile.username?.startsWith('user_')
+  ) && !usernameModalDismissed;
 
   // Check if user needs to wait for competition
   const needsWaitingRoom = !isAdmin && 
@@ -115,9 +119,9 @@ export default function Challenges() {
 
   return (
     <Layout>
-      {/* Username Setup Modal for Google users */}
-      {needsUsername && (
-        <UsernameSetupModal onComplete={() => setUsernameModalDismissed(true)} />
+      {/* Profile Completion Modal for incomplete profiles */}
+      {needsProfileCompletion && (
+        <ProfileCompletionModal onComplete={() => setUsernameModalDismissed(true)} />
       )}
 
       <div className="container mx-auto px-4 pt-28 pb-8">

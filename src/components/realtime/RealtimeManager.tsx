@@ -2,14 +2,32 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useLocation } from 'react-router-dom';
 
 /**
- * Global Realtime Manager - Subscribes to database changes and invalidates queries
+ * Enhanced Global Realtime Manager - Subscribes to database changes and invalidates queries
  * This component should be mounted once in App.tsx
+ * Now includes route-based refetching for guaranteed real-time updates
  */
 export function RealtimeManager() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const location = useLocation();
+
+  // Refetch queries when route changes for guaranteed freshness
+  useEffect(() => {
+    console.log('[Realtime] Route changed to:', location.pathname);
+    
+    // Refetch relevant queries based on route
+    if (location.pathname.includes('/challenges')) {
+      queryClient.refetchQueries({ queryKey: ['challenges'] });
+      queryClient.refetchQueries({ queryKey: ['user-solves'] });
+    } else if (location.pathname.includes('/leaderboard') || location.pathname.includes('/scoreboard')) {
+      queryClient.refetchQueries({ queryKey: ['leaderboard'] });
+    } else if (location.pathname.includes('/activity')) {
+      queryClient.refetchQueries({ queryKey: ['activity'] });
+    }
+  }, [location.pathname, queryClient]);
 
   useEffect(() => {
     // Channel for solves - invalidate leaderboard and challenges
@@ -20,14 +38,16 @@ export function RealtimeManager() {
         { event: '*', schema: 'public', table: 'solves' },
         (payload) => {
           console.log('[Realtime] Solves changed:', payload.eventType);
-          queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
-          queryClient.invalidateQueries({ queryKey: ['challenges'] });
-          queryClient.invalidateQueries({ queryKey: ['profile'] });
+          // Force refetch instead of just invalidate
+          queryClient.refetchQueries({ queryKey: ['leaderboard'] });
+          queryClient.refetchQueries({ queryKey: ['challenges'] });
+          queryClient.refetchQueries({ queryKey: ['user-solves'] });
+          queryClient.refetchQueries({ queryKey: ['profile'] });
         }
       )
       .subscribe();
 
-    // Channel for challenges - invalidate challenges query
+    // Channel for challenges - refetch challenges query
     const challengesChannel = supabase
       .channel('realtime-challenges')
       .on(
@@ -35,12 +55,12 @@ export function RealtimeManager() {
         { event: '*', schema: 'public', table: 'challenges' },
         (payload) => {
           console.log('[Realtime] Challenges changed:', payload.eventType);
-          queryClient.invalidateQueries({ queryKey: ['challenges'] });
+          queryClient.refetchQueries({ queryKey: ['challenges'] });
         }
       )
       .subscribe();
 
-    // Channel for system_settings - invalidate settings query
+    // Channel for system_settings - refetch settings query
     const settingsChannel = supabase
       .channel('realtime-settings')
       .on(
@@ -48,7 +68,7 @@ export function RealtimeManager() {
         { event: '*', schema: 'public', table: 'system_settings' },
         (payload) => {
           console.log('[Realtime] Settings changed:', payload.eventType);
-          queryClient.invalidateQueries({ queryKey: ['system-settings'] });
+          queryClient.refetchQueries({ queryKey: ['system-settings'] });
         }
       )
       .subscribe();
@@ -83,13 +103,13 @@ export function RealtimeManager() {
             });
           }
 
-          // Invalidate activity queries
-          queryClient.invalidateQueries({ queryKey: ['activity'] });
+          // Refetch activity queries
+          queryClient.refetchQueries({ queryKey: ['activity'] });
         }
       )
       .subscribe();
 
-    // Channel for profiles - invalidate leaderboard
+    // Channel for profiles - refetch leaderboard
     const profilesChannel = supabase
       .channel('realtime-profiles')
       .on(
@@ -97,8 +117,9 @@ export function RealtimeManager() {
         { event: '*', schema: 'public', table: 'profiles' },
         (payload) => {
           console.log('[Realtime] Profiles changed:', payload.eventType);
-          queryClient.invalidateQueries({ queryKey: ['leaderboard'] });
-          queryClient.invalidateQueries({ queryKey: ['all-users'] });
+          queryClient.refetchQueries({ queryKey: ['leaderboard'] });
+          queryClient.refetchQueries({ queryKey: ['all-users'] });
+          queryClient.refetchQueries({ queryKey: ['profile'] });
         }
       )
       .subscribe();

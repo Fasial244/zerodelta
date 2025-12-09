@@ -46,6 +46,7 @@ export function useChallenges() {
       console.log('[useChallenges] Fetched challenges:', data?.length || 0);
       return data as Challenge[];
     },
+    refetchInterval: 10000, // Poll every 10 seconds for live updates
   });
 
   const userSolvesQuery = useQuery({
@@ -61,6 +62,7 @@ export function useChallenges() {
       return data;
     },
     enabled: !!user,
+    refetchInterval: 5000, // Poll every 5 seconds for live solve updates
   });
 
   const submitFlagMutation = useMutation({
