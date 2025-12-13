@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { format } from 'date-fns';
 import { 
   Plus, Trash2, Check, X, Calendar, Users, Trophy, 
-  Edit, Eye, EyeOff, Clock, UserCheck, UserX 
+  Edit, Eye, EyeOff, Clock, UserCheck, UserX, UserPlus, Search
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -31,7 +32,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useCompetitions, Competition } from '@/hooks/useCompetitions';
+import { useAdmin } from '@/hooks/useAdmin';
 import DOMPurify from 'dompurify';
 
 export function AdminCompetitions() {
@@ -42,10 +51,19 @@ export function AdminCompetitions() {
     updateCompetition,
     deleteCompetition,
     updateRegistration,
+    assignUser,
+    bulkAssignUsers,
+    isAssigning,
   } = useCompetitions();
 
+  const { users } = useAdmin();
+
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isAssignOpen, setIsAssignOpen] = useState(false);
   const [editingCompetition, setEditingCompetition] = useState<Competition | null>(null);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [assignCompetitionId, setAssignCompetitionId] = useState<string>('');
+  const [userSearch, setUserSearch] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -103,6 +121,43 @@ export function AdminCompetitions() {
 
   const pendingRegistrations = allRegistrations.filter(r => r.status === 'pending');
   const approvedRegistrations = allRegistrations.filter(r => r.status === 'approved');
+
+  // Filter users for assignment (exclude already registered for selected competition)
+  const registeredUserIds = allRegistrations
+    .filter(r => r.competition_id === assignCompetitionId)
+    .map(r => r.user_id);
+  
+  const availableUsers = users.filter(u => {
+    const matchesSearch = !userSearch || 
+      u.username?.toLowerCase().includes(userSearch.toLowerCase()) ||
+      u.full_name?.toLowerCase().includes(userSearch.toLowerCase()) ||
+      u.university_id?.toLowerCase().includes(userSearch.toLowerCase());
+    const notRegistered = !registeredUserIds.includes(u.id);
+    return matchesSearch && notRegistered;
+  });
+
+  const handleBulkAssign = () => {
+    if (selectedUsers.length === 0 || !assignCompetitionId) return;
+    bulkAssignUsers(selectedUsers, assignCompetitionId, 'approved');
+    setSelectedUsers([]);
+    setIsAssignOpen(false);
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const selectAllUsers = () => {
+    if (selectedUsers.length === availableUsers.length) {
+      setSelectedUsers([]);
+    } else {
+      setSelectedUsers(availableUsers.map(u => u.id));
+    }
+  };
 
   const CompetitionForm = ({ isEdit = false }: { isEdit?: boolean }) => (
     <div className="space-y-4">
@@ -198,6 +253,10 @@ export function AdminCompetitions() {
                   {pendingRegistrations.length}
                 </Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="assign" className="font-mono">
+              <UserPlus className="w-4 h-4 mr-2" />
+              Assign Users
             </TabsTrigger>
           </TabsList>
 
@@ -402,6 +461,106 @@ export function AdminCompetitions() {
                   </div>
                 ))}
               </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* Assign Users Tab */}
+        <TabsContent value="assign" className="space-y-6">
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold font-mono flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-primary" />
+              ASSIGN USERS TO COMPETITION
+            </h3>
+
+            {/* Competition Selector */}
+            <div className="space-y-2">
+              <Label>Select Competition</Label>
+              <Select value={assignCompetitionId} onValueChange={setAssignCompetitionId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a competition..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {competitions.map((comp) => (
+                    <SelectItem key={comp.id} value={comp.id}>
+                      {comp.name} {comp.is_active && '(Active)'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {assignCompetitionId && (
+              <>
+                {/* Search and Select All */}
+                <div className="flex items-center gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search users..."
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                  <Button variant="outline" onClick={selectAllUsers}>
+                    {selectedUsers.length === availableUsers.length && availableUsers.length > 0
+                      ? 'Deselect All'
+                      : 'Select All'}
+                  </Button>
+                  <Button 
+                    onClick={handleBulkAssign} 
+                    disabled={selectedUsers.length === 0 || isAssigning}
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Assign {selectedUsers.length} User{selectedUsers.length !== 1 ? 's' : ''}
+                  </Button>
+                </div>
+
+                {/* User List */}
+                {availableUsers.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground border border-dashed rounded-lg">
+                    {users.length === 0 ? 'No users found' : 'All users are already registered'}
+                  </div>
+                ) : (
+                  <div className="grid gap-2 max-h-96 overflow-y-auto">
+                    {availableUsers.map((user) => (
+                      <div 
+                        key={user.id} 
+                        className={`
+                          flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors
+                          ${selectedUsers.includes(user.id) 
+                            ? 'bg-primary/10 border-primary/50' 
+                            : 'bg-card border-border hover:bg-muted/50'}
+                        `}
+                        onClick={() => toggleUserSelection(user.id)}
+                      >
+                        <Checkbox 
+                          checked={selectedUsers.includes(user.id)}
+                          onCheckedChange={() => toggleUserSelection(user.id)}
+                        />
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={user.avatar_url || undefined} />
+                          <AvatarFallback className="bg-primary/20 text-xs">
+                            {(user.username || '??').slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">
+                            {DOMPurify.sanitize(user.username || 'Unknown')}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {user.full_name} • {user.university_id}
+                          </p>
+                        </div>
+                        {user.is_banned && (
+                          <Badge variant="destructive">Banned</Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </TabsContent>

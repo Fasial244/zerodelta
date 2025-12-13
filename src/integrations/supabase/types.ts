@@ -749,6 +749,18 @@ export type Database = {
       }
     }
     Functions: {
+      admin_assign_user_to_competition: {
+        Args: { p_competition_id: string; p_status?: string; p_user_id: string }
+        Returns: Json
+      }
+      admin_bulk_assign_to_competition: {
+        Args: {
+          p_competition_id: string
+          p_status?: string
+          p_user_ids: string[]
+        }
+        Returns: Json
+      }
       create_team: { Args: { team_name: string }; Returns: Json }
       get_my_team_join_code: { Args: never; Returns: string }
       has_role: {

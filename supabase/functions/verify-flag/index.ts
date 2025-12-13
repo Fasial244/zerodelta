@@ -7,8 +7,16 @@ const corsHeaders = {
 
 interface VerifyRequest {
   challenge_id: string;
-  flag_input?: string;
-  flag_hash?: string;
+  flag_input: string; // Always send raw flag input - hashing done server-side
+}
+
+// Server-side flag hashing function
+async function hashFlag(flag: string, salt: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(flag + salt);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 // Enhanced ReDoS protection constants
@@ -184,7 +192,7 @@ Deno.serve(async (req) => {
     }
 
     const body: VerifyRequest = await req.json();
-    const { challenge_id, flag_input, flag_hash } = body;
+    const { challenge_id, flag_input } = body;
 
     if (!challenge_id) {
       return new Response(JSON.stringify({ error: 'Case ID required' }), {
@@ -193,8 +201,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (!flag_input) {
+      return new Response(JSON.stringify({ error: 'Evidence input required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Input length validation for ReDoS protection
-    if (flag_input && flag_input.length > MAX_INPUT_LENGTH) {
+    if (flag_input.length > MAX_INPUT_LENGTH) {
       console.warn(`Flag input too long from user ${user.id}: ${flag_input.length} chars`);
       return new Response(JSON.stringify({ error: 'Evidence input exceeds maximum length' }), {
         status: 400,
@@ -269,25 +284,14 @@ Deno.serve(async (req) => {
 
     // Verify flag
     let isCorrect = false;
+    const salt = settingsMap.flag_salt || 'zd_s3cr3t_s4lt_2024';
 
     if (challenge.flag_type === 'static') {
-      // For static flags, compare hashes
-      if (!flag_hash) {
-        return new Response(JSON.stringify({ error: 'Evidence hash required for static cases' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      isCorrect = flag_hash === challenge.flag_hash;
+      // For static flags, hash server-side and compare
+      const computedHash = await hashFlag(flag_input, salt);
+      isCorrect = computedHash === challenge.flag_hash;
     } else if (challenge.flag_type === 'regex') {
       // For regex flags, validate pattern with enhanced ReDoS protection
-      if (!flag_input) {
-        return new Response(JSON.stringify({ error: 'Evidence input required for dynamic cases' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      
       if (!challenge.flag_pattern) {
         console.error('Case missing regex pattern:', challenge_id);
         isCorrect = false;
@@ -305,20 +309,23 @@ Deno.serve(async (req) => {
       ip_address: req.headers.get('x-forwarded-for') || 'unknown',
     });
 
-    // Check for honeypot
+    // Check for honeypot - hash the input server-side to compare
     const { data: honeypotSetting } = await supabase
       .from('system_settings')
       .select('value')
       .eq('key', 'honeypot_hash')
       .single();
 
-    if (honeypotSetting && flag_hash === honeypotSetting.value) {
-      await supabase.from('profiles').update({ is_banned: true }).eq('id', user.id);
-      console.warn(`User ${user.id} banned for honeypot submission`);
-      return new Response(JSON.stringify({ error: 'Access denied.' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (honeypotSetting) {
+      const inputHash = await hashFlag(flag_input, salt);
+      if (inputHash === honeypotSetting.value) {
+        await supabase.from('profiles').update({ is_banned: true }).eq('id', user.id);
+        console.warn(`User ${user.id} banned for honeypot submission`);
+        return new Response(JSON.stringify({ error: 'Access denied.' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     if (!isCorrect) {
