@@ -639,6 +639,26 @@ export type Database = {
           },
         ]
       }
+      leaderboard_public: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          first_bloods: number | null
+          player_id: string | null
+          solve_count: number | null
+          total_points: number | null
+          username: string | null
+        }
+        Relationships: []
+      }
+      scoreboard_stats_public: {
+        Row: {
+          competition_name: string | null
+          generated_at: string | null
+          user_count: number | null
+        }
+        Relationships: []
+      }
       submission_attempts_public: {
         Row: {
           challenge_id: string | null
