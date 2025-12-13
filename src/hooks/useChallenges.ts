@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { hashFlag } from '@/lib/hash';
 import { useToast } from './use-toast';
 
 export type Challenge = {
@@ -70,25 +69,12 @@ export function useChallenges() {
       const challenge = challengesQuery.data?.find(c => c.id === challengeId);
       if (!challenge) throw new Error('Challenge not found');
 
-      // Get salt from settings
-      const { data: saltSetting } = await supabase
-        .from('system_settings')
-        .select('value')
-        .eq('key', 'flag_salt')
-        .single();
-
-      const salt = saltSetting?.value || 'zd_s3cr3t_s4lt_2024';
-
-      let requestBody: { challenge_id: string; flag_input?: string; flag_hash?: string } = {
+      // Always send raw flag_input to Edge Function - hashing is done server-side
+      // This is more secure as the salt is never exposed to the client
+      const requestBody = {
         challenge_id: challengeId,
+        flag_input: flagInput,
       };
-
-      if (challenge.flag_type === 'static') {
-        const hash = await hashFlag(flagInput, salt);
-        requestBody.flag_hash = hash;
-      } else {
-        requestBody.flag_input = flagInput;
-      }
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');

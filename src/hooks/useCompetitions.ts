@@ -143,7 +143,59 @@ export function useCompetitions() {
     },
   });
 
-  // Create competition (admin)
+  // Admin assign user to competition
+  const assignUserMutation = useMutation({
+    mutationFn: async ({ userId, competitionId, status = 'approved' }: { 
+      userId: string; 
+      competitionId: string; 
+      status?: string 
+    }) => {
+      const { data, error } = await supabase.rpc('admin_assign_user_to_competition', {
+        p_user_id: userId,
+        p_competition_id: competitionId,
+        p_status: status,
+      });
+
+      if (error) throw error;
+      const result = data as { success: boolean; error?: string };
+      if (!result.success) throw new Error(result.error || 'Failed to assign user');
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['all-registrations'] });
+      toast.success('User assigned to competition');
+    },
+    onError: (error: any) => {
+      toast.error('Failed to assign user: ' + error.message);
+    },
+  });
+
+  // Admin bulk assign users to competition
+  const bulkAssignMutation = useMutation({
+    mutationFn: async ({ userIds, competitionId, status = 'approved' }: { 
+      userIds: string[]; 
+      competitionId: string; 
+      status?: string 
+    }) => {
+      const { data, error } = await supabase.rpc('admin_bulk_assign_to_competition', {
+        p_user_ids: userIds,
+        p_competition_id: competitionId,
+        p_status: status,
+      });
+
+      if (error) throw error;
+      const result = data as { success: boolean; error?: string; assigned_count?: number };
+      if (!result.success) throw new Error(result.error || 'Failed to assign users');
+      return result;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['all-registrations'] });
+      toast.success(`${data.assigned_count} users assigned to competition`);
+    },
+    onError: (error: any) => {
+      toast.error('Failed to assign users: ' + error.message);
+    },
+  });
   const createCompetitionMutation = useMutation({
     mutationFn: async (data: Omit<Competition, 'id' | 'created_at'>) => {
       const { error } = await supabase
@@ -215,5 +267,10 @@ export function useCompetitions() {
     updateCompetition: (data: Partial<Competition> & { id: string }) => 
       updateCompetitionMutation.mutate(data),
     deleteCompetition: (id: string) => deleteCompetitionMutation.mutate(id),
+    assignUser: (userId: string, competitionId: string, status?: string) =>
+      assignUserMutation.mutate({ userId, competitionId, status }),
+    bulkAssignUsers: (userIds: string[], competitionId: string, status?: string) =>
+      bulkAssignMutation.mutate({ userIds, competitionId, status }),
+    isAssigning: assignUserMutation.isPending || bulkAssignMutation.isPending,
   };
 }
