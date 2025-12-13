@@ -45,29 +45,27 @@ export function useTeam() {
   const createTeamMutation = useMutation({
     mutationFn: async (teamName: string) => {
       if (!user) throw new Error('Not authenticated');
-      if (profile?.is_locked) throw new Error('You cannot change teams after your first solve');
 
-      // Create team
-      const { data: team, error: teamError } = await supabase
-        .from('teams')
-        .insert({ name: teamName })
-        .select('id, name, score, created_at')
-        .single();
+      // Use secure RPC to create team - handles lock check + activity log server-side
+      const { data, error } = await supabase.rpc('create_team', {
+        team_name: teamName,
+      });
 
-      if (teamError) throw teamError;
+      if (error) throw error;
+      
+      const result = data as { 
+        success: boolean; 
+        error?: string; 
+        team_id?: string; 
+        team_name?: string;
+        join_code?: string;
+      };
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to create team');
+      }
 
-      // Update user profile first so RPC can find the team
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ team_id: team.id })
-        .eq('id', user.id);
-
-      if (profileError) throw profileError;
-
-      // Fetch the join_code for the newly created team via secure RPC
-      const { data: joinCode } = await supabase.rpc('get_my_team_join_code');
-
-      return { ...team, join_code: joinCode };
+      return { id: result.team_id, name: result.team_name, join_code: result.join_code };
     },
     onSuccess: (team) => {
       toast({
@@ -125,14 +123,17 @@ export function useTeam() {
   const leaveTeamMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Not authenticated');
-      if (profile?.is_locked) throw new Error('You cannot change teams after your first solve');
 
-      const { error } = await supabase
-        .from('profiles')
-        .update({ team_id: null })
-        .eq('id', user.id);
+      // Use secure RPC to leave team - handles lock check + activity log server-side
+      const { data, error } = await supabase.rpc('leave_team');
 
       if (error) throw error;
+      
+      const result = data as { success: boolean; error?: string };
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to leave team');
+      }
     },
     onSuccess: () => {
       toast({
