@@ -749,6 +749,7 @@ export type Database = {
       }
     }
     Functions: {
+      create_team: { Args: { team_name: string }; Returns: Json }
       get_my_team_join_code: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -758,6 +759,7 @@ export type Database = {
         Returns: boolean
       }
       join_team_via_code: { Args: { code_input: string }; Returns: Json }
+      leave_team: { Args: never; Returns: Json }
       log_activity: {
         Args: {
           p_challenge_id?: string
