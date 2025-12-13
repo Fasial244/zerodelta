@@ -10,8 +10,6 @@ export interface SystemSettings {
   decay_factor: number;
   min_points: number;
   event_title: string;
-  flag_salt: string;
-  honeypot_hash: string;
   instance_reset_interval: number;
 }
 
@@ -31,15 +29,13 @@ const parseSettings = (data: Array<{ key: string; value: string }> | null): Syst
     decay_factor: parseFloat(settingsMap.decay_factor || '10'),
     min_points: parseInt(settingsMap.min_points || '50'),
     event_title: settingsMap.event_title || 'ZeroDelta',
-    flag_salt: settingsMap.flag_salt || '',
-    honeypot_hash: settingsMap.honeypot_hash || '',
     instance_reset_interval: parseInt(settingsMap.instance_reset_interval || '15'),
   };
 };
 
 const fetchSystemSettings = async (): Promise<SystemSettings> => {
   const { data, error } = await supabase
-    .from('system_settings')
+    .from('system_settings_public')
     .select('key, value');
 
   if (error) throw error;
@@ -67,7 +63,7 @@ export function useSystemSettings() {
         {
           event: '*',
           schema: 'public',
-          table: 'system_settings'
+          table: 'system_settings_public'
         },
         () => {
           // Invalidate cache to trigger refetch

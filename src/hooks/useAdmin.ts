@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useToast } from "./use-toast";
-import { hashFlag } from "@/lib/hash";
 import type { Json } from "@/integrations/supabase/types";
 
 export function useAdmin() {
@@ -61,7 +60,7 @@ export function useAdmin() {
         .select(
           `
           id, username, full_name, university_id, avatar_url, team_id, is_banned, is_locked, created_at, updated_at,
-          teams (name),
+          teams_public:team_id (id, name),
           solves (id, points_awarded)
         `,
         )
@@ -89,8 +88,7 @@ export function useAdmin() {
         .select(
           `
           id, event_type, message, points, user_id, challenge_id, team_id, created_at,
-          profiles:user_id (username),
-          challenges:challenge_id (title)
+          profiles:user_id (username)
         `,
         )
         .order("created_at", { ascending: false })
@@ -119,40 +117,16 @@ export function useAdmin() {
       connection_info?: Record<string, unknown>;
       dependencies?: string[];
     }) => {
-      const { data: saltSetting } = await supabase
-        .from("system_settings")
-        .select("value")
-        .eq("key", "flag_salt")
-        .single();
-
-      const salt = saltSetting?.value || "zd_s3cr3t_s4lt_2024";
-
-      let flag_hash = null;
-      let flag_pattern = null;
-
-      if (challenge.flag_type === "static") {
-        flag_hash = await hashFlag(challenge.flag_value, salt);
-      } else {
-        flag_pattern = challenge.flag_value;
-      }
-
-      const { data, error } = await supabase
-        .from("challenges")
-        .insert([
-          {
-            title: challenge.title,
-            description: challenge.description,
-            points: challenge.points,
-            category: challenge.category as "Web" | "Pwn" | "Forensics" | "Crypto" | "Other",
-            flag_type: challenge.flag_type as "static" | "regex",
-            flag_hash,
-            flag_pattern,
-            connection_info: (challenge.connection_info || {}) as Json,
-            dependencies: challenge.dependencies || [],
-          },
-        ])
-        .select()
-        .single();
+      const { data, error } = await supabase.rpc("admin_create_challenge", {
+        p_title: challenge.title,
+        p_description: challenge.description,
+        p_points: challenge.points,
+        p_category: challenge.category,
+        p_flag_type: challenge.flag_type,
+        p_flag_value: challenge.flag_value,
+        p_connection_info: (challenge.connection_info || {}) as Json,
+        p_dependencies: challenge.dependencies || [],
+      });
 
       if (error) throw error;
       return data;
@@ -185,35 +159,18 @@ export function useAdmin() {
       flag_type?: string;
       flag_value?: string;
     }) => {
-      let finalUpdates: Record<string, unknown> = { ...updates };
-
-      // If new flag value provided, hash it
-      if (flag_value && flag_type) {
-        const { data: saltSetting } = await supabase
-          .from("system_settings")
-          .select("value")
-          .eq("key", "flag_salt")
-          .single();
-
-        const salt = saltSetting?.value || "zd_s3cr3t_s4lt_2024";
-
-        if (flag_type === "static") {
-          finalUpdates.flag_hash = await hashFlag(flag_value, salt);
-          finalUpdates.flag_pattern = null;
-          finalUpdates.flag_type = "static";
-        } else {
-          finalUpdates.flag_pattern = flag_value;
-          finalUpdates.flag_hash = null;
-          finalUpdates.flag_type = "regex";
-        }
-      }
-
-      // Convert connection_info if present
-      if (updates.connection_info) {
-        finalUpdates.connection_info = updates.connection_info as Json;
-      }
-
-      const { error } = await supabase.from("challenges").update(finalUpdates).eq("id", id);
+      const { error } = await supabase.rpc("admin_update_challenge", {
+        p_id: id,
+        p_title: updates.title,
+        p_description: updates.description,
+        p_points: updates.points,
+        p_category: updates.category,
+        p_flag_type: flag_type,
+        p_flag_value: flag_value,
+        p_connection_info: updates.connection_info as Json | undefined,
+        p_dependencies: updates.dependencies,
+        p_is_active: updates.is_active,
+      });
 
       if (error) throw error;
     },
@@ -229,7 +186,7 @@ export function useAdmin() {
 
   const deleteChallengeMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("challenges").delete().eq("id", id);
+      const { error } = await supabase.rpc("admin_delete_challenge", { p_id: id });
 
       if (error) throw error;
     },
@@ -245,19 +202,9 @@ export function useAdmin() {
 
   const banUserMutation = useMutation({
     mutationFn: async ({ userId, ban }: { userId: string; ban: boolean }) => {
-      const { error } = await supabase.from("profiles").update({ is_banned: ban }).eq("id", userId);
+      const { error } = await supabase.rpc("admin_set_user_ban", { p_user_id: userId, p_ban: ban });
 
       if (error) throw error;
-
-      if (ban) {
-        const { data: profile } = await supabase.from("profiles").select("username").eq("id", userId).single();
-
-        await supabase.from("activity_log").insert({
-          event_type: "user_banned",
-          user_id: userId,
-          message: `${profile?.username || "User"} was banned`,
-        });
-      }
     },
     onSuccess: (_, { ban }) => {
       toast({ title: ban ? "User banned" : "User unbanned" });
@@ -270,7 +217,7 @@ export function useAdmin() {
 
   const unlockUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase.from("profiles").update({ is_locked: false }).eq("id", userId);
+      const { error } = await supabase.rpc("admin_set_user_lock", { p_user_id: userId, p_locked: false });
 
       if (error) throw error;
     },
@@ -285,22 +232,9 @@ export function useAdmin() {
 
   const promoteToAdminMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase.from("user_roles").insert({ user_id: userId, role: "admin" });
+      const { error } = await supabase.rpc("admin_promote_user", { p_user_id: userId });
 
-      if (error) {
-        if (error.code === "23505") {
-          throw new Error("User is already an admin");
-        }
-        throw error;
-      }
-
-      const { data: profile } = await supabase.from("profiles").select("username").eq("id", userId).single();
-
-      await supabase.from("activity_log").insert({
-        event_type: "announcement",
-        user_id: userId,
-        message: `${profile?.username || "User"} was promoted to admin`,
-      });
+      if (error) throw error;
     },
     onSuccess: () => {
       toast({ title: "User promoted to admin!" });
@@ -313,17 +247,9 @@ export function useAdmin() {
 
   const resetUserScoreMutation = useMutation({
     mutationFn: async (userId: string) => {
-      const { error } = await supabase.from("solves").delete().eq("user_id", userId);
+      const { error } = await supabase.rpc("admin_reset_user_score", { p_user_id: userId });
 
       if (error) throw error;
-
-      const { data: profile } = await supabase.from("profiles").select("username").eq("id", userId).single();
-
-      await supabase.from("activity_log").insert({
-        event_type: "announcement",
-        user_id: userId,
-        message: `${profile?.username || "User"}'s score was reset`,
-      });
     },
     onSuccess: () => {
       toast({ title: "User score reset!" });
@@ -337,9 +263,7 @@ export function useAdmin() {
 
   const updateSettingMutation = useMutation({
     mutationFn: async ({ key, value }: { key: string; value: string }) => {
-      const { error } = await supabase
-        .from("system_settings")
-        .upsert({ key, value, updated_at: new Date().toISOString() });
+      const { error } = await supabase.rpc("admin_update_setting", { p_key: key, p_value: value });
 
       if (error) throw error;
     },
@@ -354,10 +278,7 @@ export function useAdmin() {
 
   const postAnnouncementMutation = useMutation({
     mutationFn: async (message: string) => {
-      const { error } = await supabase.from("activity_log").insert({
-        event_type: "announcement",
-        message,
-      });
+      const { error } = await supabase.rpc("admin_post_announcement", { p_message: message });
 
       if (error) throw error;
     },

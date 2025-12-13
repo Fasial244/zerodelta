@@ -338,93 +338,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Calculate points with dynamic scoring
-    const { data: decaySettings } = await supabase
-      .from('system_settings')
-      .select('key, value')
-      .in('key', ['decay_rate', 'decay_factor', 'min_points', 'first_blood_bonus']);
-
-    const decayMap: Record<string, string> = {};
-    decaySettings?.forEach(s => decayMap[s.key] = s.value);
-
-    const decayRate = parseFloat(decayMap.decay_rate || '0.5');
-    const decayFactor = parseFloat(decayMap.decay_factor || '10');
-    const minPoints = parseInt(decayMap.min_points || '50');
-    const firstBloodBonus = parseInt(decayMap.first_blood_bonus || '10');
-
-    // Check first blood
-    const isFirstBlood = !challenge.first_blood_user_id;
-
-    // Calculate base points with decay
-    let awardedPoints = Math.max(
-      minPoints,
-      Math.floor(challenge.points * Math.pow(decayRate, challenge.solve_count / decayFactor))
-    );
-
-    // Add first blood bonus
-    if (isFirstBlood) {
-      awardedPoints += firstBloodBonus;
-    }
-
-    // Insert solve
-    await supabase.from('solves').insert({
-      user_id: user.id,
-      challenge_id,
-      team_id: profile?.team_id || null,
-      points_awarded: awardedPoints,
-      is_first_blood: isFirstBlood,
+    const { data: awardResult, error: awardError } = await supabase.rpc('award_solve_atomic', {
+      p_user_id: user.id,
+      p_challenge_id: challenge_id,
+      p_team_id: profile?.team_id || null,
     });
 
-    // Update challenge stats
-    const updateData: Record<string, unknown> = { solve_count: challenge.solve_count + 1 };
-    if (isFirstBlood) {
-      updateData.first_blood_user_id = user.id;
-      updateData.first_blood_at = new Date().toISOString();
+    if (awardError || !awardResult) {
+      console.error('Error awarding solve:', awardError);
+      return new Response(JSON.stringify({ error: 'Unable to record solve' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
-    await supabase.from('challenges').update(updateData).eq('id', challenge_id);
-
-    // Update team score if applicable
-    if (profile?.team_id) {
-      const { data: team } = await supabase
-        .from('teams')
-        .select('score')
-        .eq('id', profile.team_id)
-        .single();
-      
-      if (team) {
-        await supabase
-          .from('teams')
-          .update({ score: team.score + awardedPoints })
-          .eq('id', profile.team_id);
-      }
-    }
-
-    // Get username for activity log
-    const { data: userProfile } = await supabase
-      .from('profiles')
-      .select('username')
-      .eq('id', user.id)
-      .single();
-
-    // Log activity
-    await supabase.from('activity_log').insert({
-      event_type: isFirstBlood ? 'first_blood' : 'solve',
-      user_id: user.id,
-      challenge_id,
-      team_id: profile?.team_id || null,
-      points: awardedPoints,
-      message: isFirstBlood 
-        ? `🩸 ${userProfile?.username || 'Unknown'} drew FIRST BLOOD on ${challenge.title}!`
-        : `${userProfile?.username || 'Unknown'} cracked ${challenge.title}`,
-    });
 
     return new Response(JSON.stringify({
       success: true,
-      points_awarded: awardedPoints,
-      is_first_blood: isFirstBlood,
-      message: isFirstBlood 
-        ? `🩸 FIRST BLOOD! You earned ${awardedPoints} points (+${firstBloodBonus} bonus)!`
-        : `Case cracked! You earned ${awardedPoints} points!`,
+      points_awarded: awardResult.awarded_points,
+      is_first_blood: awardResult.is_first_blood,
+      message: awardResult.is_first_blood
+        ? `🩸 FIRST BLOOD! You earned ${awardResult.awarded_points} points!`
+        : `Case cracked! You earned ${awardResult.awarded_points} points!`,
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
